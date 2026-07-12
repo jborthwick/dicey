@@ -188,9 +188,28 @@ button:disabled {
   font-size: 13px;
   color: var(--ink-dim);
 }
-/* Enemy panel highlights while the spider takes its turn. */
+/* Enemy panel highlights while the spider takes its turn. Inset, not outset —
+   an outward glow here bled past .fight-scroll's overflow-x: hidden and got
+   cropped on the sides. Inset shadows paint inside the border box, so they
+   can never be clipped by an ancestor's overflow, however tight the gutter. */
 .enemy.acting {
-  box-shadow: 0 0 0 2px #8a5fc0, 0 0 22px -4px #8a5fc0;
+  box-shadow:
+    inset 0 0 0 2px #8a5fc0,
+    inset 0 0 16px -6px #8a5fc0;
+  animation: enemy-acting-glow 1.8s ease-in-out infinite;
+}
+@keyframes enemy-acting-glow {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 2px #8a5fc0,
+      inset 0 0 16px -6px #8a5fc0;
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 2px #a97fe8,
+      inset 0 0 26px -4px #a97fe8;
+  }
 }
 .enemy-stage {
   display: flex;
@@ -640,6 +659,12 @@ button:disabled {
   .end-turn.nudge {
     animation: none;
     box-shadow: 0 0 10px 2px rgba(226, 189, 82, 0.6);
+  }
+  .enemy.acting {
+    animation: none;
+    box-shadow:
+      inset 0 0 0 2px #8a5fc0,
+      inset 0 0 18px -5px #8a5fc0;
   }
 }
 .die.held {
