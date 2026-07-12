@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   canPlayCard,
-  endTurn,
+  endTurnTimeline,
   getCard,
   newGame,
   playCard,
@@ -21,6 +21,7 @@ import { ELEMENT_COLOR, STATUS_UI, SYMBOL_UI } from "./symbols";
 const SHUFFLE_MS = 280; // how long a rolling die flickers before settling
 const FLICKER_MS = 50; // interval between flicker frames
 const STAGGER_MS = 45; // per-die delay so a multi-die roll cascades
+const RESOLVE_DELAY = 900; // pause between beats of the spider's turn
 
 const REDUCED_MOTION =
   typeof window !== "undefined" &&
@@ -30,6 +31,39 @@ const REDUCED_MOTION =
  *  pure cosmetics and must not perturb the seeded core RNG. */
 function randomSymbol(): Symbol {
   return SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]!;
+}
+
+/**
+ * The symbol-shuffle: while a die is rolling (i.e. this hook's component just
+ * mounted, forced by a key change), flicker through random faces, then settle on
+ * the real one — timed to land with the CSS tumble. Returns the face to display.
+ * Shared by the player's dice and the spider's.
+ */
+function useRollShuffle(realSym: Symbol, delay: number): Symbol {
+  const [shown, setShown] = useState<Symbol>(() =>
+    REDUCED_MOTION ? realSym : randomSymbol(),
+  );
+  useEffect(() => {
+    if (REDUCED_MOTION) {
+      setShown(realSym);
+      return;
+    }
+    let flicker: ReturnType<typeof setInterval> | undefined;
+    const start = setTimeout(() => {
+      flicker = setInterval(() => setShown(randomSymbol()), FLICKER_MS);
+    }, delay);
+    const settle = setTimeout(() => {
+      if (flicker) clearInterval(flicker);
+      setShown(realSym);
+    }, delay + SHUFFLE_MS);
+    return () => {
+      clearTimeout(start);
+      clearTimeout(settle);
+      if (flicker) clearInterval(flicker);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return shown;
 }
 
 /**
@@ -53,6 +87,42 @@ export default function App() {
   const bumpSome = (indices: number[]) =>
     setRollNonce((prev) => prev.map((n, i) => (indices.includes(i) ? n + 1 : n)));
 
+  // Same nonce trick for the spider's dice, so they tumble as it rolls/rerolls.
+  const [enemyNonce, setEnemyNonce] = useState<number[]>(() =>
+    state.enemy.dice.map(() => 0),
+  );
+
+  // Enemy-turn playback: endTurnTimeline gives us a list of board snapshots and
+  // we reveal them one at a time so the spider's turn is watchable instead of
+  // instant. `frames`/`frameIdx` drive it; `resolving` is true mid-playback.
+  const [frames, setFrames] = useState<GameState[]>([]);
+  const [frameIdx, setFrameIdx] = useState(0);
+  const resolving = frameIdx < frames.length - 1;
+
+  // Reveal `next`, animating dice that actually changed between the two frames.
+  const applyFrame = (next: GameState, prev: GameState) => {
+    setState(next);
+    const enemyRolled = next.enemy.dice.flatMap((d, i) =>
+      prev.enemy.dice[i]?.face !== d.face ? [i] : [],
+    );
+    if (enemyRolled.length) {
+      setEnemyNonce((n) => n.map((v, i) => (enemyRolled.includes(i) ? v + 1 : v)));
+    }
+    // The player's next turn re-rolls their whole pool.
+    if (next.phase === "playerTurn") bumpAll();
+  };
+
+  // Advance one frame per tick while there are frames left to show.
+  useEffect(() => {
+    if (frameIdx >= frames.length - 1) return;
+    const id = setTimeout(() => {
+      applyFrame(frames[frameIdx + 1]!, frames[frameIdx]!);
+      setFrameIdx((i) => i + 1);
+    }, RESOLVE_DELAY);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frameIdx, frames]);
+
   const doReroll = () => {
     // Only the dice reroll actually touches get a new nonce.
     const rolling = state.player.dice.flatMap((d, i) =>
@@ -63,13 +133,24 @@ export default function App() {
   };
 
   const doEndTurn = () => {
-    const next = endTurn(state);
-    setState(next);
-    // Turn start re-rolls every player die (unless the game just ended).
-    if (next.phase === "playerTurn") bumpAll();
+    if (resolving) return;
+    const timeline = endTurnTimeline(state);
+    setFrames(timeline);
+    setFrameIdx(0);
+    applyFrame(timeline[0]!, state); // show the enemy's turn beginning now
+  };
+
+  // Jump straight to the end of the spider's turn.
+  const skipResolve = () => {
+    if (!resolving) return;
+    const last = frames[frames.length - 1]!;
+    applyFrame(last, frames[frameIdx]!);
+    setFrameIdx(frames.length - 1);
   };
 
   const restart = () => {
+    setFrames([]);
+    setFrameIdx(0);
     setState(newGame(seedInput || Date.now().toString()));
     bumpAll();
   };
@@ -90,7 +171,11 @@ export default function App() {
         </div>
       </header>
 
-      <EnemyPanel enemy={state.enemy} />
+      <EnemyPanel
+        enemy={state.enemy}
+        acting={state.phase === "enemyTurn"}
+        enemyNonce={enemyNonce}
+      />
 
       {over && (
         <div className={`banner ${state.phase}`}>
@@ -104,9 +189,11 @@ export default function App() {
       <DiceTray
         state={state}
         rollNonce={rollNonce}
+        resolving={resolving}
         onToggle={(i) => setState(toggleHold(state, i))}
         onReroll={doReroll}
         onEndTurn={doEndTurn}
+        onSkip={skipResolve}
       />
 
       <PlayerBar player={state.player} />
@@ -116,11 +203,20 @@ export default function App() {
   );
 }
 
-function EnemyPanel({ enemy }: { enemy: Actor }) {
+function EnemyPanel({
+  enemy,
+  acting,
+  enemyNonce,
+}: {
+  enemy: Actor;
+  acting: boolean;
+  enemyNonce: number[];
+}) {
   return (
-    <section className="enemy">
+    <section className={`enemy${acting ? " acting" : ""}`}>
       <div className="enemy-name">
         {enemy.name}
+        {acting && <span className="acting-tag">acting…</span>}
         <StatusRow statuses={enemy.statuses} />
       </div>
       <HpBar cur={enemy.hp} max={enemy.maxHp} />
@@ -129,7 +225,55 @@ function EnemyPanel({ enemy }: { enemy: Actor }) {
           ✦ {p.name}
         </div>
       ))}
+      {acting && <EnemyDice enemy={enemy} enemyNonce={enemyNonce} />}
     </section>
+  );
+}
+
+/** Read-only display of the spider's dice during its turn. */
+function EnemyDice({ enemy, enemyNonce }: { enemy: Actor; enemyNonce: number[] }) {
+  let rollOrder = 0;
+  return (
+    <div className="dice enemy-dice">
+      {enemy.dice.map((d, i) => {
+        const willRoll = !d.held && !d.spent;
+        const delay = willRoll ? rollOrder++ * STAGGER_MS : 0;
+        return <EnemyDie key={`${i}-${enemyNonce[i] ?? 0}`} die={d} delay={delay} />;
+      })}
+    </div>
+  );
+}
+
+function EnemyDie({ die, delay }: { die: Die; delay: number }) {
+  const realSym = symbolOf(die);
+  const ui = SYMBOL_UI[realSym];
+  const shown = useRollShuffle(realSym, delay);
+  const cls = [
+    "die",
+    "readonly",
+    die.entangled ? "entangled" : "",
+    !die.entangled && die.spent ? "spent" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return (
+    <div
+      className={cls}
+      style={
+        {
+          borderColor: die.entangled ? undefined : ui.color,
+          "--roll-delay": `${delay}ms`,
+        } as CSSProperties
+      }
+      title={die.entangled ? `${ui.label} — Entangled` : ui.label}
+    >
+      <span className="die-glyph">{SYMBOL_UI[shown].glyph}</span>
+      {die.entangled && (
+        <span className="die-web" aria-hidden>
+          🕸️
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -183,15 +327,19 @@ function CostView({ card }: { card: CardDef }) {
 function DiceTray({
   state,
   rollNonce,
+  resolving,
   onToggle,
   onReroll,
   onEndTurn,
+  onSkip,
 }: {
   state: GameState;
   rollNonce: number[];
+  resolving: boolean;
   onToggle: (i: number) => void;
   onReroll: () => void;
   onEndTurn: () => void;
+  onSkip: () => void;
 }) {
   const dice = state.player.dice;
   const canAct = state.phase === "playerTurn";
@@ -219,15 +367,23 @@ function DiceTray({
         })}
       </div>
       <div className="tray-actions">
-        <button
-          disabled={!canAct || state.player.rollsRemaining <= 0}
-          onClick={onReroll}
-        >
-          Reroll ({state.player.rollsRemaining})
-        </button>
-        <button className="end-turn" disabled={!canAct} onClick={onEndTurn}>
-          End Turn →
-        </button>
+        {resolving ? (
+          <button className="skip" onClick={onSkip}>
+            Skip ⏭
+          </button>
+        ) : (
+          <>
+            <button
+              disabled={!canAct || state.player.rollsRemaining <= 0}
+              onClick={onReroll}
+            >
+              Reroll ({state.player.rollsRemaining})
+            </button>
+            <button className="end-turn" disabled={!canAct} onClick={onEndTurn}>
+              End Turn →
+            </button>
+          </>
+        )}
       </div>
     </section>
   );
@@ -255,33 +411,7 @@ function DieView({
 }) {
   const realSym = symbolOf(die);
   const ui = SYMBOL_UI[realSym];
-  const [shown, setShown] = useState<Symbol>(() =>
-    REDUCED_MOTION ? realSym : randomSymbol(),
-  );
-
-  // Mount-only: the die is remounted (fresh key) every time it rolls.
-  useEffect(() => {
-    if (REDUCED_MOTION) {
-      setShown(realSym);
-      return;
-    }
-    let flicker: ReturnType<typeof setInterval> | undefined;
-    // Begin flickering as the die drops in (after its stagger delay)…
-    const start = setTimeout(() => {
-      flicker = setInterval(() => setShown(randomSymbol()), FLICKER_MS);
-    }, delay);
-    // …then settle on the true face before the tumble finishes.
-    const settle = setTimeout(() => {
-      if (flicker) clearInterval(flicker);
-      setShown(realSym);
-    }, delay + SHUFFLE_MS);
-    return () => {
-      clearTimeout(start);
-      clearTimeout(settle);
-      if (flicker) clearInterval(flicker);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const shown = useRollShuffle(realSym, delay);
 
   // Entangled implies held+spent, but it should read as a status, not as a die
   // you spent — so it takes its own style and suppresses the held/spent looks.

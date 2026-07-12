@@ -69,6 +69,11 @@ Same seed ⇒ identical run. Determinism is a hard invariant; there's a test for
 - **Actors are symmetric.** Player and enemy share the `Actor` shape (dice, hand,
   rerolls, passives). The enemy just drives its turn with `enemyTurn`'s greedy AI
   instead of user input. Smarter enemy behavior slots in there.
+- **The enemy turn is animatable.** `endTurnTimeline(state)` returns an ordered
+  list of board snapshots (enemy rolls, each reroll, each card, then the player's
+  next turn) so the UI can play the spider's turn back with delays. `endTurn` is
+  just its last frame — headless/tests use `endTurn`; the UI uses the timeline.
+  Snapshots are clones that consume no RNG, so both paths are identical & seeded.
 - **Effect targets are relative to the actor.** `self` = the actor, `enemy` = its
   opponent. So a spider intent with `target: "enemy"` hits the player.
 - **Card cost is one of two shapes:** `{ kind: "symbols", symbol, count }` (N of a

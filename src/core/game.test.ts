@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { canPlayCard, endTurn, newGame, playCard, reroll, toggleHold } from "./game";
+import {
+  canPlayCard,
+  endTurn,
+  endTurnTimeline,
+  newGame,
+  playCard,
+  reroll,
+  toggleHold,
+} from "./game";
 import { matchRequirement } from "./dice";
 import { nextInt, seedRng } from "./rng";
 import type { Die, GameState } from "./types";
@@ -191,6 +199,25 @@ describe("game — entangle is bounded and never softlocks", () => {
         expect(o.entangled).toBe(o.spent);
       }
     }
+  });
+});
+
+describe("endTurnTimeline", () => {
+  it("last frame equals endTurn(); frames are ordered snapshots", () => {
+    const s = newGame(42);
+    const frames = endTurnTimeline(s);
+    expect(frames.length).toBeGreaterThanOrEqual(2);
+    // First beat is the enemy's turn (or a terminal state), never the player's.
+    expect(frames[0]!.phase).not.toBe("playerTurn");
+    // The atomic endTurn is exactly the final frame.
+    expect(frames[frames.length - 1]).toEqual(endTurn(s));
+  });
+
+  it("does not mutate the input state", () => {
+    const s = newGame(3);
+    const snapshot = structuredClone(s);
+    endTurnTimeline(s);
+    expect(s).toEqual(snapshot);
   });
 });
 

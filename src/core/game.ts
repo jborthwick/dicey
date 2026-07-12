@@ -222,14 +222,17 @@ function firstAffordable(actor: Actor): string | null {
 
 /**
  * Drive the enemy's turn: reroll toward something playable, then greedily play
- * affordable cards until it can't (or the player dies). Deliberately simple —
- * it's the seam where a smarter AI slots in later.
+ * affordable cards until it can't (or the player dies). `onStep` fires after
+ * each visible action (a reroll batch or a card play) so callers can snapshot
+ * the board for animated playback. Deliberately simple — the seam where a
+ * smarter AI slots in later.
  */
-function enemyTurn(draft: GameState): void {
+function enemyTurn(draft: GameState, onStep: () => void): void {
   const enemy = draft.enemy;
 
   if (stacksOf(enemy, "silence") > 0) {
     log(draft, `${enemy.name} is Silenced and cannot act.`);
+    onStep();
     return;
   }
 
@@ -239,13 +242,20 @@ function enemyTurn(draft: GameState): void {
       if (!die.held && !die.spent) rollDie(draft, die);
     }
     enemy.rollsRemaining--;
+    onStep();
   }
 
-  for (let plays = 0; plays < MAX_CARDS_PER_TURN; plays++) {
+  let played = 0;
+  for (; played < MAX_CARDS_PER_TURN; played++) {
     const cardId = firstAffordable(enemy);
     if (cardId === null) break;
     spendAndResolve(draft, "enemy", cardId);
+    onStep();
     if (checkGameOver(draft)) return;
+  }
+  if (played === 0) {
+    log(draft, `${enemy.name} finds no move.`);
+    onStep();
   }
 }
 
@@ -346,30 +356,53 @@ export function playCard(state: GameState, cardId: string): GameState {
 }
 
 /**
- * End the player's turn: decay the player's statuses, run the enemy's turn, then
- * (if both survive) advance the round and start the next player turn.
+ * Resolve everything between the player pressing End Turn and the start of their
+ * next turn, returning an **ordered list of board snapshots** — one per visible
+ * beat (enemy turn begins & rolls, each enemy reroll, each enemy card, then the
+ * player's next turn begins). The UI plays these back with delays to show the
+ * spider act; the final snapshot is the next player-turn state.
+ *
+ * Pure & deterministic: the snapshots are clones and consume no RNG, so the
+ * sequence of random draws is identical to a single atomic resolution.
  */
-export function endTurn(state: GameState): GameState {
+export function endTurnTimeline(state: GameState): GameState[] {
+  if (state.phase !== "playerTurn") return [clone(state)];
+
   const draft = clone(state);
-  if (draft.phase !== "playerTurn") return draft;
+  const frames: GameState[] = [];
+  const snap = () => frames.push(clone(draft));
 
   endOfTurnDecay(draft.player);
 
-  // Enemy turn.
+  // Enemy turn begins: clear block, tick poison, fire player passives, roll.
   draft.phase = "enemyTurn";
   startTurn(draft, "enemy");
-  if (!checkGameOver(draft)) {
-    enemyTurn(draft);
-    endOfTurnDecay(draft.enemy);
-  }
-  if (checkGameOver(draft)) return draft;
+  snap();
 
-  // Back to the player.
-  draft.turn++;
-  draft.phase = "playerTurn";
-  startTurn(draft, "player");
-  checkGameOver(draft);
-  return draft;
+  if (!checkGameOver(draft)) {
+    enemyTurn(draft, snap);
+  }
+
+  // Back to the player (unless someone died during the enemy's turn).
+  if (!checkGameOver(draft)) {
+    endOfTurnDecay(draft.enemy);
+    draft.turn++;
+    draft.phase = "playerTurn";
+    startTurn(draft, "player");
+    checkGameOver(draft);
+  }
+  snap();
+  return frames;
+}
+
+/**
+ * End the player's turn and return the resulting next-turn state directly (the
+ * last frame of {@link endTurnTimeline}). Headless/tests use this; the UI uses
+ * the timeline to animate the enemy's turn.
+ */
+export function endTurn(state: GameState): GameState {
+  const frames = endTurnTimeline(state);
+  return frames[frames.length - 1]!;
 }
 
 // Re-exports so UI/headless can pull everything from one module.
