@@ -369,14 +369,6 @@ export default function App() {
           </div>
         )}
 
-        {drafting && state.run.draftOffers && (
-          <DraftOverlay
-            offers={state.run.draftOffers}
-            relic={state.run.pendingRelic}
-            onPick={pickCard}
-          />
-        )}
-
         <CardGrid state={state} onPlay={playPlayerCard} disabled={drafting || over} />
 
         <Log lines={state.log} />
@@ -395,6 +387,17 @@ export default function App() {
           onSkip={skipResolve}
         />
       </div>
+
+      {/* position:fixed overlays live outside .fight-scroll: nesting a fixed
+          element inside a -webkit-overflow-scrolling: touch ancestor clips it
+          to that ancestor's box on iOS/WebKit instead of the true viewport. */}
+      {drafting && state.run.draftOffers && (
+        <DraftOverlay
+          offers={state.run.draftOffers}
+          relic={state.run.pendingRelic}
+          onPick={pickCard}
+        />
+      )}
 
       <Projectiles
         projectiles={projectiles}
