@@ -48,11 +48,11 @@ export const REWARD_CARD_IDS = [
   "gust-slap",
 ] as const;
 
-/** Early enemy order for runs. Fight 1 defaults to dust-mite. */
+/** Early enemy order for runs. Fight 1 defaults to mushroom. */
 export const STARTER_ENEMY_IDS = [
-  "dust-mite",
-  "puddle-slime",
-  "gust-pixie",
+  "mushroom",
+  "bloom-sprite",
+  "bat",
   "poisonous-spider",
 ] as const;
 
@@ -289,25 +289,25 @@ export const RANDOM_DEBUFFS = ["poison", "silence", "entangle", "weaken"] as con
 // Passives (relics)
 // ---------------------------------------------------------------------------
 
-const DUST_SHELL: Passive = {
-  id: "dust-shell",
-  name: "Dust Shell",
+const TOUGH_CAP: Passive = {
+  id: "tough-cap",
+  name: "Tough Cap",
   text: "Gain 1 Block at the start of the opponent's turn.",
   when: "opponentTurnStart",
   effect: { kind: "block", target: "self", amount: 1 },
 };
 
-const SLIMY_COATING: Passive = {
-  id: "slimy-coating",
-  name: "Slimy Coating",
+const POLLEN_CLOUD: Passive = {
+  id: "pollen-cloud",
+  name: "Pollen Cloud",
   text: "Inflict 1 Poison at the start of the opponent's turn.",
   when: "opponentTurnStart",
   effect: { kind: "status", target: "enemy", status: "poison", stacks: 1 },
 };
 
-const GUST_WISP: Passive = {
-  id: "gust-wisp",
-  name: "Gust Wisp",
+const SONIC_SCREECH: Passive = {
+  id: "sonic-screech",
+  name: "Sonic Screech",
   text: "Inflict 1 Weaken at the start of the opponent's turn.",
   when: "opponentTurnStart",
   effect: { kind: "status", target: "enemy", status: "weaken", stacks: 1 },
@@ -353,41 +353,41 @@ export function makePlayer(): Actor {
 
 export function makeEnemy(id: StarterEnemyId | string): Actor {
   switch (id) {
-    case "dust-mite":
+    case "mushroom":
       return {
-        id: "dust-mite",
-        name: "Dust Mite",
+        id: "mushroom",
+        name: "Spore Mushroom",
         hp: 40,
         maxHp: 40,
         statuses: {},
         dice: makeDice(["stone", "tide", "gale", "spark", "gale"]),
         hand: ["nibble", "pebble-toss"],
         rollsRemaining: REROLLS_PER_TURN,
-        passives: [DUST_SHELL],
+        passives: [TOUGH_CAP],
       };
-    case "puddle-slime":
+    case "bloom-sprite":
       return {
-        id: "puddle-slime",
-        name: "Puddle Slime",
+        id: "bloom-sprite",
+        name: "Bloom Sprite",
         hp: 55,
         maxHp: 55,
         statuses: {},
         dice: makeDice(["tide", "web", "tide", "stone", "spark"]),
         hand: ["splash", "drip"],
         rollsRemaining: REROLLS_PER_TURN,
-        passives: [SLIMY_COATING],
+        passives: [POLLEN_CLOUD],
       };
-    case "gust-pixie":
+    case "bat":
       return {
-        id: "gust-pixie",
-        name: "Gust Pixie",
+        id: "bat",
+        name: "Cave Bat",
         hp: 50,
         maxHp: 50,
         statuses: {},
         dice: makeDice(["gale", "gale", "spark", "prism", "gale"]),
         hand: ["breeze", "mewl"],
         rollsRemaining: REROLLS_PER_TURN,
-        passives: [GUST_WISP],
+        passives: [SONIC_SCREECH],
       };
     case "poisonous-spider":
       return {

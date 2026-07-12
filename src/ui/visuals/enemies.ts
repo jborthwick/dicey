@@ -14,42 +14,49 @@ function clip(enemyId: string, file: string, fps: number, loop: boolean): Sprite
   };
 }
 
+/**
+ * `source` here is the quick-reference provenance for each enemy's sprite —
+ * pack, license, and which exact animation variant was used. It must match
+ * `public/assets/enemies/README.md`, which carries the full detail (itch.io
+ * links, per-file source names). Update BOTH in the same commit whenever you
+ * swap or add a sprite — see the "Asset provenance" note in CLAUDE.md.
+ */
 export const ENEMY_VISUALS: Record<string, EnemyVisual> = {
-  "dust-mite": {
-    source: "monopixelart/flying-enemies (Enemy3 free)",
+  mushroom: {
+    source: "Forest_Monsters_FREE / Mushroom (with-VFX hurt) — free",
     displayScale: ENEMY_DISPLAY_SCALE,
     defaultClip: "idle",
     clips: {
-      idle: clip("dust-mite", "idle.png", 8, true),
-      attack: clip("dust-mite", "attack.png", 12, false),
-      hurt: clip("dust-mite", "hurt.png", 12, false),
-      die: clip("dust-mite", "die.png", 10, false),
+      idle: clip("mushroom", "idle.png", 8, true),
+      attack: clip("mushroom", "attack.png", 12, false),
+      hurt: clip("mushroom", "hurt.png", 12, false),
+      die: clip("mushroom", "die.png", 10, false),
     },
   },
-  "puddle-slime": {
-    source: "phewcumber/skeleton-pack (Warrior free)",
+  "bloom-sprite": {
+    source: "FlyingForestEnemies_FREE / Enemy3 (Movement-In-Animation hit) — free",
     displayScale: ENEMY_DISPLAY_SCALE,
     defaultClip: "idle",
     clips: {
-      idle: clip("puddle-slime", "idle.png", 6, true),
-      attack: clip("puddle-slime", "attack.png", 12, false),
-      hurt: clip("puddle-slime", "hit.png", 10, false),
-      die: clip("puddle-slime", "die.png", 8, false),
+      idle: clip("bloom-sprite", "idle.png", 6, true),
+      attack: clip("bloom-sprite", "attack.png", 12, false),
+      hurt: clip("bloom-sprite", "hit.png", 10, false),
+      die: clip("bloom-sprite", "die.png", 8, false),
     },
   },
-  "gust-pixie": {
-    source: "monopixelart/flying-enemies (Enemy1 premium)",
+  bat: {
+    source: "DarkFantasyEnemies_FREE / Bat (with-VFX attack1 + hurt) — free",
     displayScale: ENEMY_DISPLAY_SCALE,
     defaultClip: "idle",
     clips: {
-      idle: clip("gust-pixie", "idle.png", 8, true),
-      attack: clip("gust-pixie", "attack.png", 12, false),
-      hurt: clip("gust-pixie", "hurt.png", 10, false),
-      die: clip("gust-pixie", "die.png", 10, false),
+      idle: clip("bat", "idle.png", 8, true),
+      attack: clip("bat", "attack.png", 12, false),
+      hurt: clip("bat", "hurt.png", 10, false),
+      die: clip("bat", "die.png", 10, false),
     },
   },
   "poisonous-spider": {
-    source: "monopixelart/flying-enemies (Enemy2 premium)",
+    source: "unassigned — no sprite committed yet, see README",
     displayScale: ENEMY_DISPLAY_SCALE,
     defaultClip: "idle",
     clips: {

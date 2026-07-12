@@ -100,6 +100,16 @@ Same seed ⇒ identical run. Determinism is a hard invariant; there's a test for
   +2 poison every player turn while poison only decays by 1 → runaway poison when
   fighting it. Early enemies are tuned softer for onboarding. Adjust numbers in
   `content.ts` only — the rules in `game.ts` shouldn't need to change.
+- **Asset provenance is tracked, not assumed.** `public/assets/enemies/README.md`
+  is the source-of-truth ledger (pack, license, exact source files) for every
+  committed sprite; `src/ui/visuals/enemies.ts`'s `source` field is the
+  quick-reference copy. **Update both in the same commit whenever you add or
+  swap a sprite** — this drifted out of sync once already (folder names and
+  license labels stopped matching what was actually committed) and caused a
+  false "paid asset in a public repo" scare. Enemy id ⇄ folder name ⇄ display
+  name should always match what the sprite actually depicts. Unreleased
+  candidate art belongs in the gitignored `dicey asset src/` at the repo root,
+  never committed.
 
 ## Git commit conventions
 

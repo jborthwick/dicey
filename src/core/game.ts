@@ -345,7 +345,7 @@ const EMPTY_RUN: GameState["run"] = {
 /** Create a single encounter (tests/headless). Win ends the fight; no draft. */
 export function newGame(
   seed: number | string,
-  enemyId: string = "dust-mite",
+  enemyId: string = "mushroom",
 ): GameState {
   const base: GameState = {
     seed,

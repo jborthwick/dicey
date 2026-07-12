@@ -113,7 +113,7 @@ describe("game — starting state", () => {
     expect(s.turn).toBe(1);
     expect(s.player.hp).toBe(86);
     expect(s.enemy.hp).toBe(40);
-    expect(s.enemy.name).toBe("Dust Mite");
+    expect(s.enemy.name).toBe("Spore Mushroom");
     expect(s.player.hand).toEqual(["expel", "ice-cone"]);
     expect(s.player.dice).toHaveLength(5);
     expect(s.player.hp).toBe(s.player.maxHp);
@@ -256,7 +256,7 @@ describe("game — run progression", () => {
     }
     expect(s.phase).toBe("draft");
     expect(s.run.draftOffers).toHaveLength(2);
-    expect(s.run.pendingRelic?.name).toBe("Dust Shell");
+    expect(s.run.pendingRelic?.name).toBe("Tough Cap");
   });
 
   it("pickDraftCard adds the card, relic, and starts the next fight", () => {
@@ -273,9 +273,9 @@ describe("game — run progression", () => {
     s = pickDraftCard(s, pick);
     expect(s.phase).toBe("playerTurn");
     expect(s.run.fightIndex).toBe(1);
-    expect(s.enemy.name).toBe("Puddle Slime");
+    expect(s.enemy.name).toBe("Bloom Sprite");
     expect(s.player.hand).toContain(pick);
-    expect(s.player.passives.some((p) => p.id === "dust-shell")).toBe(true);
+    expect(s.player.passives.some((p) => p.id === "tough-cap")).toBe(true);
   });
 });
 
