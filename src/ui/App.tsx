@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   canPlayCard,
   endTurnTimeline,
@@ -24,6 +24,42 @@ const SHUFFLE_MS = 280; // how long a rolling die flickers before settling
 const FLICKER_MS = 50; // interval between flicker frames
 const STAGGER_MS = 45; // per-die delay so a multi-die roll cascades
 const RESOLVE_DELAY = 1000; // pause between beats of the spider's turn
+const PROJECTILE_MS = 440; // flight time of a played-card projectile
+
+/** Which side's HP bar a card's effect is aimed at, from the actor's frame:
+ *  offensive/debuff cards fly at the opponent, self-buffs at the caster. */
+function targetSideOf(card: CardDef, actorSide: "player" | "enemy"): "player" | "enemy" {
+  const primary = card.effects[0]?.target ?? "enemy";
+  const opponent = actorSide === "player" ? "enemy" : "player";
+  return primary === "self" ? actorSide : opponent;
+}
+
+/** Coarse category, drives the projectile / impact color. */
+function cardVariant(card: CardDef): "attack" | "buff" | "debuff" {
+  if (card.effects.some((e) => e.kind === "damage")) return "attack";
+  if (card.effects.some((e) => e.kind === "block")) return "buff";
+  return "debuff";
+}
+
+function centerOf(el: Element): { x: number; y: number } {
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+interface Projectile {
+  id: number;
+  label: string;
+  color: string;
+  variant: "attack" | "buff" | "debuff";
+  side: "player" | "enemy"; // whose HP bar it hits
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+}
+
+/** Per-side impact pulse: `n` retriggers the flash, `v` colors it. */
+type HitState = { player: { n: number; v: string }; enemy: { n: number; v: string } };
 
 const REDUCED_MOTION =
   typeof window !== "undefined" &&
@@ -107,6 +143,66 @@ export default function App() {
   const enemyPlayingCard =
     currentAction?.kind === "play" ? currentAction.cardId : null;
 
+  // Flying-card projectiles + per-side impact flashes. Emphasize the direction
+  // of each play: the played card lunges at the HP bar it affects.
+  const [projectiles, setProjectiles] = useState<Projectile[]>([]);
+  const [hit, setHit] = useState<HitState>({
+    player: { n: 0, v: "attack" },
+    enemy: { n: 0, v: "attack" },
+  });
+  const projectileId = useRef(0);
+
+  const spawnProjectile = (
+    card: CardDef,
+    actorSide: "player" | "enemy",
+    sourceEl: Element | null,
+  ) => {
+    if (REDUCED_MOTION || !sourceEl) return;
+    const side = targetSideOf(card, actorSide);
+    const destEl = document.querySelector(
+      side === "enemy" ? ".enemy .hpbar" : ".player .hpbar",
+    );
+    if (!destEl) return;
+    const from = centerOf(sourceEl);
+    const to = centerOf(destEl);
+    const id = ++projectileId.current;
+    setProjectiles((ps) => [
+      ...ps,
+      {
+        id,
+        label: card.name,
+        color: ELEMENT_COLOR[card.element] ?? "#666",
+        variant: cardVariant(card),
+        side,
+        fromX: from.x,
+        fromY: from.y,
+        toX: to.x,
+        toY: to.y,
+      },
+    ]);
+  };
+
+  // When a projectile lands: remove it and flash the target bar.
+  const onProjectileArrive = (p: Projectile) => {
+    setProjectiles((ps) => ps.filter((x) => x.id !== p.id));
+    setHit((h) => ({ ...h, [p.side]: { n: h[p.side].n + 1, v: p.variant } }));
+  };
+
+  // Spider plays are discovered per beat; fire a projectile from its card.
+  useEffect(() => {
+    const action = frames[frameIdx]?.action;
+    if (action?.kind !== "play") return;
+    // The playing card just got its `.playing` class in this render.
+    const sourceEl = document.querySelector(".enemy-card.playing");
+    spawnProjectile(getCard(action.cardId), "enemy", sourceEl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frameIdx]);
+
+  const playPlayerCard = (id: string, sourceEl: Element) => {
+    spawnProjectile(getCard(id), "player", sourceEl);
+    setState(playCard(state, id));
+  };
+
   // Reveal `next`, animating dice that actually changed between the two frames.
   const applyFrame = (next: GameState, prev: GameState) => {
     setState(next);
@@ -183,6 +279,7 @@ export default function App() {
         acting={state.phase === "enemyTurn"}
         enemyNonce={enemyNonce}
         playingCardId={enemyPlayingCard}
+        hit={hit.enemy}
       />
 
       {over && (
@@ -192,7 +289,7 @@ export default function App() {
         </div>
       )}
 
-      <CardGrid state={state} onPlay={(id) => setState(playCard(state, id))} />
+      <CardGrid state={state} onPlay={playPlayerCard} />
 
       <DiceTray
         state={state}
@@ -204,9 +301,68 @@ export default function App() {
         onSkip={skipResolve}
       />
 
-      <PlayerBar player={state.player} />
+      <PlayerBar player={state.player} hit={hit.player} />
 
       <Log lines={state.log} />
+
+      <Projectiles projectiles={projectiles} onArrive={onProjectileArrive} />
+    </div>
+  );
+}
+
+/** Fixed overlay that flies each played card toward its target's HP bar. */
+function Projectiles({
+  projectiles,
+  onArrive,
+}: {
+  projectiles: Projectile[];
+  onArrive: (p: Projectile) => void;
+}) {
+  return (
+    <div className="projectiles-layer">
+      {projectiles.map((p) => (
+        <FlyingCard key={p.id} p={p} onArrive={onArrive} />
+      ))}
+    </div>
+  );
+}
+
+function FlyingCard({
+  p,
+  onArrive,
+}: {
+  p: Projectile;
+  onArrive: (p: Projectile) => void;
+}) {
+  const [moved, setMoved] = useState(false);
+  useEffect(() => {
+    // Two frames so the browser paints the start position before transitioning.
+    const raf = requestAnimationFrame(() =>
+      requestAnimationFrame(() => setMoved(true)),
+    );
+    const done = setTimeout(() => onArrive(p), PROJECTILE_MS + 40);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(done);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const dx = p.toX - p.fromX;
+  const dy = p.toY - p.fromY;
+  const style: CSSProperties = {
+    left: p.fromX,
+    top: p.fromY,
+    background: p.color,
+    transform: moved
+      ? `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.55)`
+      : "translate(-50%, -50%) scale(1)",
+    opacity: moved ? 0.2 : 1,
+    transition: `transform ${PROJECTILE_MS}ms cubic-bezier(0.5, 0, 0.7, 1), opacity ${PROJECTILE_MS}ms ease-in`,
+  };
+  return (
+    <div className={`projectile ${p.variant}`} style={style}>
+      {p.label}
     </div>
   );
 }
@@ -216,11 +372,13 @@ function EnemyPanel({
   acting,
   enemyNonce,
   playingCardId,
+  hit,
 }: {
   enemy: Actor;
   acting: boolean;
   enemyNonce: number[];
   playingCardId: string | null;
+  hit: { n: number; v: string };
 }) {
   return (
     <section className={`enemy${acting ? " acting" : ""}`}>
@@ -229,7 +387,7 @@ function EnemyPanel({
         {acting && <span className="acting-tag">acting…</span>}
         <StatusRow statuses={enemy.statuses} />
       </div>
-      <HpBar cur={enemy.hp} max={enemy.maxHp} />
+      <HpBar cur={enemy.hp} max={enemy.maxHp} hit={hit} />
       {enemy.passives.map((p) => (
         <div key={p.id} className="passive" title={p.name}>
           ✦ {p.name}
@@ -339,7 +497,7 @@ function CardGrid({
   onPlay,
 }: {
   state: GameState;
-  onPlay: (id: string) => void;
+  onPlay: (id: string, sourceEl: Element) => void;
 }) {
   const cards = useMemo(() => state.player.hand.map(getCard), [state.player.hand]);
   return (
@@ -352,7 +510,7 @@ function CardGrid({
             className="card"
             style={{ background: ELEMENT_COLOR[card.element] }}
             disabled={!playable}
-            onClick={() => onPlay(card.id)}
+            onClick={(e) => onPlay(card.id, e.currentTarget)}
           >
             <div className="card-name">{card.name}</div>
             <div className="card-cost">
@@ -506,26 +664,39 @@ function DieView({
   );
 }
 
-function PlayerBar({ player }: { player: Actor }) {
+function PlayerBar({ player, hit }: { player: Actor; hit: { n: number; v: string } }) {
   return (
     <section className="player">
       <div className="player-name">
         {player.name}
         <StatusRow statuses={player.statuses} />
       </div>
-      <HpBar cur={player.hp} max={player.maxHp} />
+      <HpBar cur={player.hp} max={player.maxHp} hit={hit} />
     </section>
   );
 }
 
-function HpBar({ cur, max }: { cur: number; max: number }) {
+function HpBar({
+  cur,
+  max,
+  hit,
+}: {
+  cur: number;
+  max: number;
+  hit?: { n: number; v: string };
+}) {
   const pct = Math.max(0, Math.min(100, (cur / max) * 100));
+  const n = hit?.n ?? 0;
   return (
-    <div className="hpbar">
+    // Keyed by the hit nonce: a landing projectile remounts the bar, replaying
+    // both the shake and the flash. HP-only changes (poison, etc.) don't bump
+    // the nonce, so the fill still transitions smoothly.
+    <div key={n} className={`hpbar${n > 0 ? " bumped" : ""}`}>
       <div className="hpbar-fill" style={{ width: `${pct}%` }} />
       <span className="hpbar-text">
         {cur} / {max}
       </span>
+      {n > 0 && <span className={`hpbar-hit ${hit!.v}`} />}
     </div>
   );
 }

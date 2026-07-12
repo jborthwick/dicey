@@ -186,6 +186,90 @@ button:disabled {
   font-weight: 700;
   text-shadow: 0 1px 2px #0008;
 }
+/* Impact pulse when a projectile lands on a bar. */
+.hpbar.bumped {
+  animation: hp-shake 320ms ease-out;
+}
+.hpbar-hit {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: hit-flash 420ms ease-out forwards;
+}
+.hpbar-hit.attack {
+  background: radial-gradient(ellipse at center, rgba(255, 90, 80, 0.75), transparent 72%);
+}
+.hpbar-hit.debuff {
+  background: radial-gradient(ellipse at center, rgba(180, 120, 240, 0.7), transparent 72%);
+}
+.hpbar-hit.buff {
+  background: radial-gradient(ellipse at center, rgba(95, 214, 160, 0.65), transparent 72%);
+}
+@keyframes hit-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+@keyframes hp-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-3px);
+  }
+  50% {
+    transform: translateX(3px);
+  }
+  75% {
+    transform: translateX(-2px);
+  }
+}
+
+/* ---- flying-card projectiles ---- */
+.projectiles-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+}
+.projectile {
+  position: fixed;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  border: 1px solid #ffffff55;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.55);
+  will-change: transform, opacity;
+}
+.projectile.attack {
+  box-shadow: 0 0 16px -2px #ff6b5e, 0 3px 12px rgba(0, 0, 0, 0.55);
+}
+.projectile.debuff {
+  box-shadow: 0 0 16px -2px #c07af0, 0 3px 12px rgba(0, 0, 0, 0.55);
+}
+.projectile.buff {
+  box-shadow: 0 0 16px -2px #5fd6a0, 0 3px 12px rgba(0, 0, 0, 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hpbar.bumped,
+  .hpbar-hit {
+    animation: none;
+  }
+}
 
 .statuses {
   display: flex;
