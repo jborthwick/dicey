@@ -332,48 +332,53 @@ export default function App() {
         </div>
       </header>
 
-      <EnemyPanel
-        enemy={state.enemy}
-        acting={state.phase === "enemyTurn"}
-        enemyNonce={enemyNonce}
-        playingCardId={enemyPlayingCard}
-        hit={hit.enemy}
-      />
-
-      {over && (
-        <div className={`banner ${state.phase}`}>
-          {state.phase === "runWon"
-            ? "Run complete!"
-            : state.phase === "won"
-              ? "Victory!"
-              : "Defeated…"}{" "}
-          <button onClick={restart}>Play again</button>
-        </div>
-      )}
-
-      {drafting && state.run.draftOffers && (
-        <DraftOverlay
-          offers={state.run.draftOffers}
-          relic={state.run.pendingRelic}
-          onPick={pickCard}
+      {/* Scrollable fight chrome: hand can grow to 2+ rows without shoving the tray off-screen. */}
+      <div className="fight-scroll">
+        <EnemyPanel
+          enemy={state.enemy}
+          acting={state.phase === "enemyTurn"}
+          enemyNonce={enemyNonce}
+          playingCardId={enemyPlayingCard}
+          hit={hit.enemy}
         />
-      )}
 
-      <CardGrid state={state} onPlay={playPlayerCard} disabled={drafting || over} />
+        {over && (
+          <div className={`banner ${state.phase}`}>
+            {state.phase === "runWon"
+              ? "Run complete!"
+              : state.phase === "won"
+                ? "Victory!"
+                : "Defeated…"}{" "}
+            <button onClick={restart}>Play again</button>
+          </div>
+        )}
 
-      <DiceTray
-        state={state}
-        rollNonce={rollNonce}
-        resolving={resolving}
-        onToggle={(i) => setState(toggleHold(state, i))}
-        onReroll={doReroll}
-        onEndTurn={doEndTurn}
-        onSkip={skipResolve}
-      />
+        {drafting && state.run.draftOffers && (
+          <DraftOverlay
+            offers={state.run.draftOffers}
+            relic={state.run.pendingRelic}
+            onPick={pickCard}
+          />
+        )}
 
-      <PlayerBar player={state.player} hit={hit.player} passives={state.player.passives} />
+        <CardGrid state={state} onPlay={playPlayerCard} disabled={drafting || over} />
 
-      <Log lines={state.log} />
+        <Log lines={state.log} />
+      </div>
+
+      {/* Pinned dock: HP + dice/actions stay reachable on short phones. */}
+      <div className="dock">
+        <PlayerBar player={state.player} hit={hit.player} passives={state.player.passives} />
+        <DiceTray
+          state={state}
+          rollNonce={rollNonce}
+          resolving={resolving}
+          onToggle={(i) => setState(toggleHold(state, i))}
+          onReroll={doReroll}
+          onEndTurn={doEndTurn}
+          onSkip={skipResolve}
+        />
+      </div>
 
       <Projectiles
         projectiles={projectiles}

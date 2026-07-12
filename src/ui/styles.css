@@ -13,20 +13,53 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   background: radial-gradient(circle at 50% 0%, #2a2145, var(--bg));
   color: var(--ink);
+  overflow: hidden;
 }
 
 .app {
   max-width: 560px;
+  height: 100%;
+  max-height: 100dvh;
   margin: 0 auto;
-  padding: 12px 12px 32px;
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+/* Enemy + hand + log scroll; dock (HP / dice) stays pinned below. */
+.fight-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.dock {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 2px;
+  /* Separate scrolling cards from the always-visible controls. */
+  box-shadow: 0 -10px 18px -14px rgba(0, 0, 0, 0.65);
 }
 
 /* ---- topbar ---- */
@@ -162,13 +195,51 @@ button:disabled {
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  min-height: 220px;
-  margin: 4px 0 8px;
+  /* Keep the hand (and a peek of a 2nd row) above the pinned dock. */
+  height: clamp(88px, 14vh, 140px);
+  margin: 4px 0 6px;
+  overflow: hidden;
 }
 .enemy-sprite {
   display: flex;
   justify-content: center;
+  align-items: flex-end;
+  height: 100%;
   filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.45));
+}
+/* Inline canvas w/h are the source pixel size × scale (~256px); fit the stage. */
+.enemy-sprite canvas,
+.enemy-sprite .sprite-loading,
+.enemy-sprite .sprite-missing {
+  height: 100% !important;
+  width: auto !important;
+  max-width: 100%;
+}
+
+/* Short phones: reclaim more room for a 2-row hand above the pinned dock. */
+@media (max-height: 740px) {
+  .enemy-stage {
+    height: clamp(72px, 12vh, 112px);
+  }
+}
+@media (max-height: 640px) {
+  .enemy-stage {
+    height: clamp(64px, 11vh, 96px);
+  }
+  .card {
+    min-height: 88px;
+    padding: 6px;
+  }
+  .log {
+    min-height: 72px;
+  }
+  .player {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+  .tray {
+    padding: 8px 10px;
+  }
 }
 .sprite {
   image-rendering: pixelated;
