@@ -203,14 +203,18 @@ describe("game — entangle is bounded and never softlocks", () => {
 });
 
 describe("endTurnTimeline", () => {
-  it("last frame equals endTurn(); frames are ordered snapshots", () => {
+  it("last beat equals endTurn(); beats are ordered snapshots", () => {
     const s = newGame(42);
-    const frames = endTurnTimeline(s);
-    expect(frames.length).toBeGreaterThanOrEqual(2);
+    const beats = endTurnTimeline(s);
+    expect(beats.length).toBeGreaterThanOrEqual(2);
     // First beat is the enemy's turn (or a terminal state), never the player's.
-    expect(frames[0]!.phase).not.toBe("playerTurn");
-    // The atomic endTurn is exactly the final frame.
-    expect(frames[frames.length - 1]).toEqual(endTurn(s));
+    expect(beats[0]!.state.phase).not.toBe("playerTurn");
+    expect(beats[0]!.action.kind).toBe("enemyStart");
+    // The atomic endTurn is exactly the final beat's state.
+    expect(beats[beats.length - 1]!.state).toEqual(endTurn(s));
+    // A card the spider played is reported for highlighting.
+    const plays = beats.filter((b) => b.action.kind === "play");
+    expect(plays.length).toBeGreaterThan(0);
   });
 
   it("does not mutate the input state", () => {

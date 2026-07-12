@@ -161,3 +161,18 @@ export interface GameState {
 
 /** Which side an actor reference is. Used to resolve `Target` -> concrete actor. */
 export type Side = "player" | "enemy";
+
+/** What produced a given beat of an animated turn resolution — lets the UI
+ *  highlight, e.g. the enemy card being played. */
+export type BeatAction =
+  | { kind: "enemyStart" } // enemy turn begins and rolls
+  | { kind: "reroll" } // enemy rerolled toward a playable hand
+  | { kind: "play"; cardId: string } // enemy played a card
+  | { kind: "idle" } // enemy silenced or found no move
+  | { kind: "resolve" }; // back to the player (or game over)
+
+/** One beat of an animated turn: a board snapshot plus what caused it. */
+export interface TurnBeat {
+  state: GameState;
+  action: BeatAction;
+}

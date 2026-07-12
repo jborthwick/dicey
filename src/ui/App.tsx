@@ -8,12 +8,14 @@ import {
   reroll,
   symbolOf,
   toggleHold,
+  matchRequirement,
   SYMBOLS,
   type Actor,
   type CardDef,
   type Die,
   type GameState,
   type Symbol,
+  type TurnBeat,
 } from "../core/index";
 import { ELEMENT_COLOR, STATUS_UI, SYMBOL_UI } from "./symbols";
 
@@ -21,7 +23,7 @@ import { ELEMENT_COLOR, STATUS_UI, SYMBOL_UI } from "./symbols";
 const SHUFFLE_MS = 280; // how long a rolling die flickers before settling
 const FLICKER_MS = 50; // interval between flicker frames
 const STAGGER_MS = 45; // per-die delay so a multi-die roll cascades
-const RESOLVE_DELAY = 900; // pause between beats of the spider's turn
+const RESOLVE_DELAY = 1000; // pause between beats of the spider's turn
 
 const REDUCED_MOTION =
   typeof window !== "undefined" &&
@@ -95,9 +97,15 @@ export default function App() {
   // Enemy-turn playback: endTurnTimeline gives us a list of board snapshots and
   // we reveal them one at a time so the spider's turn is watchable instead of
   // instant. `frames`/`frameIdx` drive it; `resolving` is true mid-playback.
-  const [frames, setFrames] = useState<GameState[]>([]);
+  const [frames, setFrames] = useState<TurnBeat[]>([]);
   const [frameIdx, setFrameIdx] = useState(0);
   const resolving = frameIdx < frames.length - 1;
+
+  // If the current beat is the spider playing a card, name it so the UI can
+  // light that card up.
+  const currentAction = frames[frameIdx]?.action;
+  const enemyPlayingCard =
+    currentAction?.kind === "play" ? currentAction.cardId : null;
 
   // Reveal `next`, animating dice that actually changed between the two frames.
   const applyFrame = (next: GameState, prev: GameState) => {
@@ -116,7 +124,7 @@ export default function App() {
   useEffect(() => {
     if (frameIdx >= frames.length - 1) return;
     const id = setTimeout(() => {
-      applyFrame(frames[frameIdx + 1]!, frames[frameIdx]!);
+      applyFrame(frames[frameIdx + 1]!.state, frames[frameIdx]!.state);
       setFrameIdx((i) => i + 1);
     }, RESOLVE_DELAY);
     return () => clearTimeout(id);
@@ -137,14 +145,13 @@ export default function App() {
     const timeline = endTurnTimeline(state);
     setFrames(timeline);
     setFrameIdx(0);
-    applyFrame(timeline[0]!, state); // show the enemy's turn beginning now
+    applyFrame(timeline[0]!.state, state); // show the enemy's turn beginning now
   };
 
   // Jump straight to the end of the spider's turn.
   const skipResolve = () => {
     if (!resolving) return;
-    const last = frames[frames.length - 1]!;
-    applyFrame(last, frames[frameIdx]!);
+    applyFrame(frames[frames.length - 1]!.state, frames[frameIdx]!.state);
     setFrameIdx(frames.length - 1);
   };
 
@@ -175,6 +182,7 @@ export default function App() {
         enemy={state.enemy}
         acting={state.phase === "enemyTurn"}
         enemyNonce={enemyNonce}
+        playingCardId={enemyPlayingCard}
       />
 
       {over && (
@@ -207,10 +215,12 @@ function EnemyPanel({
   enemy,
   acting,
   enemyNonce,
+  playingCardId,
 }: {
   enemy: Actor;
   acting: boolean;
   enemyNonce: number[];
+  playingCardId: string | null;
 }) {
   return (
     <section className={`enemy${acting ? " acting" : ""}`}>
@@ -225,8 +235,55 @@ function EnemyPanel({
           ✦ {p.name}
         </div>
       ))}
-      {acting && <EnemyDice enemy={enemy} enemyNonce={enemyNonce} />}
+      {acting && (
+        <>
+          <EnemyDice enemy={enemy} enemyNonce={enemyNonce} />
+          <EnemyHand enemy={enemy} playingCardId={playingCardId} />
+        </>
+      )}
     </section>
+  );
+}
+
+/**
+ * The spider's hand, shown during its turn. Cards it can currently pay for read
+ * brighter; the one it's playing this beat lights up. Read-only.
+ */
+function EnemyHand({
+  enemy,
+  playingCardId,
+}: {
+  enemy: Actor;
+  playingCardId: string | null;
+}) {
+  const cards = enemy.hand.map(getCard);
+  return (
+    <div className="enemy-hand">
+      {cards.map((card) => {
+        const affordable = matchRequirement(enemy.dice, card.requirement) !== null;
+        const playing = card.id === playingCardId;
+        const cls = [
+          "enemy-card",
+          affordable ? "affordable" : "",
+          playing ? "playing" : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+        return (
+          <div
+            key={card.id}
+            className={cls}
+            style={{ background: ELEMENT_COLOR[card.element] }}
+            title={card.text}
+          >
+            <span className="ec-name">{card.name}</span>
+            <span className="ec-cost">
+              <CostView card={card} />
+            </span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

@@ -11,7 +11,16 @@ import {
 } from "./content";
 import { matchRequirement, symbolOf } from "./dice";
 import { nextInt, pick, seedRng } from "./rng";
-import type { Actor, Die, Effect, GameState, Side, Status } from "./types";
+import type {
+  Actor,
+  BeatAction,
+  Die,
+  Effect,
+  GameState,
+  Side,
+  Status,
+  TurnBeat,
+} from "./types";
 
 /**
  * The rules. Every exported action is a **pure function**: it takes a state (and
@@ -227,12 +236,12 @@ function firstAffordable(actor: Actor): string | null {
  * the board for animated playback. Deliberately simple — the seam where a
  * smarter AI slots in later.
  */
-function enemyTurn(draft: GameState, onStep: () => void): void {
+function enemyTurn(draft: GameState, onStep: (action: BeatAction) => void): void {
   const enemy = draft.enemy;
 
   if (stacksOf(enemy, "silence") > 0) {
     log(draft, `${enemy.name} is Silenced and cannot act.`);
-    onStep();
+    onStep({ kind: "idle" });
     return;
   }
 
@@ -242,7 +251,7 @@ function enemyTurn(draft: GameState, onStep: () => void): void {
       if (!die.held && !die.spent) rollDie(draft, die);
     }
     enemy.rollsRemaining--;
-    onStep();
+    onStep({ kind: "reroll" });
   }
 
   let played = 0;
@@ -250,12 +259,12 @@ function enemyTurn(draft: GameState, onStep: () => void): void {
     const cardId = firstAffordable(enemy);
     if (cardId === null) break;
     spendAndResolve(draft, "enemy", cardId);
-    onStep();
+    onStep({ kind: "play", cardId });
     if (checkGameOver(draft)) return;
   }
   if (played === 0) {
     log(draft, `${enemy.name} finds no move.`);
-    onStep();
+    onStep({ kind: "idle" });
   }
 }
 
@@ -365,19 +374,21 @@ export function playCard(state: GameState, cardId: string): GameState {
  * Pure & deterministic: the snapshots are clones and consume no RNG, so the
  * sequence of random draws is identical to a single atomic resolution.
  */
-export function endTurnTimeline(state: GameState): GameState[] {
-  if (state.phase !== "playerTurn") return [clone(state)];
+export function endTurnTimeline(state: GameState): TurnBeat[] {
+  if (state.phase !== "playerTurn") {
+    return [{ state: clone(state), action: { kind: "resolve" } }];
+  }
 
   const draft = clone(state);
-  const frames: GameState[] = [];
-  const snap = () => frames.push(clone(draft));
+  const beats: TurnBeat[] = [];
+  const snap = (action: BeatAction) => beats.push({ state: clone(draft), action });
 
   endOfTurnDecay(draft.player);
 
   // Enemy turn begins: clear block, tick poison, fire player passives, roll.
   draft.phase = "enemyTurn";
   startTurn(draft, "enemy");
-  snap();
+  snap({ kind: "enemyStart" });
 
   if (!checkGameOver(draft)) {
     enemyTurn(draft, snap);
@@ -391,18 +402,18 @@ export function endTurnTimeline(state: GameState): GameState[] {
     startTurn(draft, "player");
     checkGameOver(draft);
   }
-  snap();
-  return frames;
+  snap({ kind: "resolve" });
+  return beats;
 }
 
 /**
  * End the player's turn and return the resulting next-turn state directly (the
- * last frame of {@link endTurnTimeline}). Headless/tests use this; the UI uses
+ * last beat of {@link endTurnTimeline}). Headless/tests use this; the UI uses
  * the timeline to animate the enemy's turn.
  */
 export function endTurn(state: GameState): GameState {
-  const frames = endTurnTimeline(state);
-  return frames[frames.length - 1]!;
+  const beats = endTurnTimeline(state);
+  return beats[beats.length - 1]!.state;
 }
 
 // Re-exports so UI/headless can pull everything from one module.

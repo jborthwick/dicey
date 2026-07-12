@@ -116,6 +116,49 @@ button:disabled {
 .enemy-dice {
   margin-top: 4px;
 }
+/* Spider's hand during its turn. */
+.enemy-hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.enemy-card {
+  flex: 1 1 0;
+  min-width: 84px;
+  border: 1px solid #ffffff22;
+  border-radius: 8px;
+  padding: 5px 7px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  opacity: 0.4;
+  transform: scale(0.97);
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+/* Cards the spider can currently pay for. */
+.enemy-card.affordable {
+  opacity: 0.82;
+}
+/* The card being played this beat. */
+.enemy-card.playing {
+  opacity: 1;
+  transform: scale(1.06);
+  box-shadow:
+    0 0 0 2px #fff8,
+    0 0 16px -2px #ffffffaa;
+}
+.ec-name {
+  font-size: 12px;
+  font-weight: 700;
+}
+.ec-cost {
+  font-size: 13px;
+}
 /* Read-only dice (the spider's) — no button chrome, no pointer. */
 .die.readonly {
   cursor: default;
