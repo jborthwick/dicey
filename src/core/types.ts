@@ -118,6 +118,8 @@ export interface CardDef {
 export type Passive = {
   id: string;
   name: string;
+  /** Human-readable summary shown when inspecting the relic. */
+  text: string;
   /** Trigger: when the opponent's turn begins, apply `effect` (from this
    *  actor's frame of reference — so `target: "enemy"` hits the opponent). */
   when: "opponentTurnStart";

@@ -27,7 +27,7 @@ import { ELEMENT_COLOR, STATUS_UI, SYMBOL_UI } from "./symbols";
 const SHUFFLE_MS = 280; // how long a rolling die flickers before settling
 const FLICKER_MS = 50; // interval between flicker frames
 const STAGGER_MS = 45; // per-die delay so a multi-die roll cascades
-const RESOLVE_DELAY = 520; // pause between beats of the spider's turn
+const RESOLVE_DELAY = 1000; // pause between beats of the enemy's turn
 const PROJECTILE_MS = 240; // flight time of a played-card projectile
 const FLOATER_MS = 650; // lifetime of a floating damage number
 
@@ -451,6 +451,41 @@ function FlyingCard({
   );
 }
 
+function RelicBadge({ passive }: { passive: Passive }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: PointerEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [open]);
+
+  return (
+    <div className="relic-badge-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className={`passive relic-badge${open ? " open" : ""}`}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-describedby={open ? `relic-tip-${passive.id}` : undefined}
+      >
+        ✦ {passive.name}
+      </button>
+      {open && (
+        <div id={`relic-tip-${passive.id}`} className="relic-tooltip" role="tooltip">
+          {passive.text}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EnemyPanel({
   enemy,
   acting,
@@ -473,9 +508,7 @@ function EnemyPanel({
       </div>
       <HpBar cur={enemy.hp} max={enemy.maxHp} hit={hit} />
       {enemy.passives.map((p) => (
-        <div key={p.id} className="passive" title={p.name}>
-          ✦ {p.name}
-        </div>
+        <RelicBadge key={p.id} passive={p} />
       ))}
       {acting && (
         <>
@@ -594,7 +627,7 @@ function DraftOverlay({
         <h2>Choose a card</h2>
         {relic && (
           <p className="draft-relic">
-            Relic gained: <strong>{relic.name}</strong>
+            Relic gained: <RelicBadge passive={relic} />
           </p>
         )}
         <div className="draft-cards">
@@ -811,9 +844,7 @@ function PlayerBar({
       {passives.length > 0 && (
         <div className="player-relics">
           {passives.map((p) => (
-            <div key={p.id} className="passive" title={p.name}>
-              ✦ {p.name}
-            </div>
+            <RelicBadge key={p.id} passive={p} />
           ))}
         </div>
       )}

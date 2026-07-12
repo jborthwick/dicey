@@ -292,6 +292,7 @@ export const RANDOM_DEBUFFS = ["poison", "silence", "entangle", "weaken"] as con
 const DUST_SHELL: Passive = {
   id: "dust-shell",
   name: "Dust Shell",
+  text: "Gain 1 Block at the start of the opponent's turn.",
   when: "opponentTurnStart",
   effect: { kind: "block", target: "self", amount: 1 },
 };
@@ -299,6 +300,7 @@ const DUST_SHELL: Passive = {
 const SLIMY_COATING: Passive = {
   id: "slimy-coating",
   name: "Slimy Coating",
+  text: "Inflict 1 Poison at the start of the opponent's turn.",
   when: "opponentTurnStart",
   effect: { kind: "status", target: "enemy", status: "poison", stacks: 1 },
 };
@@ -306,6 +308,7 @@ const SLIMY_COATING: Passive = {
 const GUST_WISP: Passive = {
   id: "gust-wisp",
   name: "Gust Wisp",
+  text: "Inflict 1 Weaken at the start of the opponent's turn.",
   when: "opponentTurnStart",
   effect: { kind: "status", target: "enemy", status: "weaken", stacks: 1 },
 };
@@ -314,6 +317,7 @@ const GUST_WISP: Passive = {
 const POISONOUS_EYEBALL: Passive = {
   id: "poisonous-eyeball",
   name: "Poisonous Eyeball",
+  text: "Inflict 2 Poison at the start of the opponent's turn.",
   when: "opponentTurnStart",
   effect: { kind: "status", target: "enemy", status: "poison", stacks: 2 },
 };

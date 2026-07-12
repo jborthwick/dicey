@@ -95,6 +95,65 @@ button:disabled {
   font-size: 12px;
   color: #e0a0d0;
 }
+.relic-badge-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.relic-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #3a2a4a;
+  border: 1px solid #6a4a7a;
+  font: inherit;
+  cursor: pointer;
+}
+.relic-badge:hover,
+.relic-badge:focus-visible,
+.relic-badge.open {
+  background: #4a3558;
+  border-color: #9a6ab0;
+  outline: none;
+}
+.relic-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  width: max-content;
+  max-width: min(240px, 70vw);
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #2a1f38;
+  border: 1px solid #8a6aa0;
+  box-shadow: 0 4px 16px #0009;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink);
+  text-align: center;
+  pointer-events: none;
+}
+.relic-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #8a6aa0;
+}
+.draft-relic {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
 /* Enemy panel highlights while the spider takes its turn. */
 .enemy.acting {
   box-shadow: 0 0 0 2px #8a5fc0, 0 0 22px -4px #8a5fc0;
@@ -527,11 +586,6 @@ button:disabled {
 .draft-panel h2 {
   margin: 0 0 8px;
   font-size: 18px;
-}
-.draft-relic {
-  margin: 0 0 12px;
-  font-size: 13px;
-  color: var(--ink-dim);
 }
 .draft-cards {
   display: flex;
