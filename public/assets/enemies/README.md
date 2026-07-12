@@ -25,17 +25,23 @@ Nothing under `dicey asset src/` is ever committed.
 
 | Enemy id | Display name | Pack | License | Source | Files used |
 |---|---|---|---|---|---|
-| `mushroom` | Spore Mushroom | Forest_Monsters_FREE | Free | *TODO: itch.io link* | `Mushroom-Idle/Attack/Die.png` (either VFX variant, identical bytes); `Mushroom-Hit.png` from the **with-VFX** variant specifically (the without-VFX `Hit.png` is a different file) |
-| `bloom-sprite` | Bloom Sprite | FlyingForestEnemies_FREE (Enemy3) | Free — see below | [monopixelart.itch.io/flying-enemies](https://monopixelart.itch.io/flying-enemies) | `Enemy3-Idle/AttackSmashLoop/Die.png` (either Movement/No-Movement variant, identical bytes); `Enemy3-Hit.png` from the **Movement-In-Animation** variant specifically |
-| `bat` | Cave Bat | DarkFantasyEnemies_FREE | Free | *TODO: itch.io link* | `Bat-IdleFly/Die.png` (either VFX variant, identical bytes); `Bat-Attack1.png` and `Bat-Hurt.png` from the **with-VFX** variant specifically (the without-VFX files differ) |
+| `mushroom` | Spore Mushroom | Forest Monsters 2D Pixel Art | Free tier | [monopixelart.itch.io/forest-monsters-pixel-art](https://monopixelart.itch.io/forest-monsters-pixel-art) | `Mushroom-Idle/Attack/Die.png` (either VFX variant, identical bytes); `Mushroom-Hit.png` from the **with-VFX** variant specifically (the without-VFX `Hit.png` is a different file) |
+| `bloom-sprite` | Bloom Sprite | Flying Forest Monsters 2D Pixel Art (Enemy3) | Free tier — see below | [monopixelart.itch.io/flying-enemies](https://monopixelart.itch.io/flying-enemies) | `Enemy3-Idle/AttackSmashLoop/Die.png` (either Movement/No-Movement variant, identical bytes); `Enemy3-Hit.png` from the **Movement-In-Animation** variant specifically |
+| `bat` | Cave Bat | Dark Fantasy Enemies 2D Pixel Art | Free tier | [monopixelart.itch.io/dark-fantasy-enemies-asset-pack](https://monopixelart.itch.io/dark-fantasy-enemies-asset-pack) | `Bat-IdleFly/Die.png` (either VFX variant, identical bytes); `Bat-Attack1.png` and `Bat-Hurt.png` from the **with-VFX** variant specifically (the without-VFX files differ) |
 | `poisonous-spider` | Poisonous Spider | *unassigned* | — | — | No sprite committed yet (`.gitkeep` only) — currently renders the missing-sprite placeholder |
 
-**A note on `flying-enemies`:** it's "pay what you want" — Enemy3 has a free
-tier, but Enemy1 and Enemy2 on that same page are locked behind a $4 minimum
-("premium"). `bloom-sprite` uses **Enemy3 only**, confirmed free. If anyone
-ever wants Enemy1/Enemy2 (the ones originally — incorrectly — documented here
-for `gust-pixie`/`poisonous-spider`), that requires the paid tier; don't
-commit those without confirming the pack was actually purchased.
+All three packs above are MonoPixelArt "name your own price" listings: each
+has a genuinely free tier that includes exactly the one enemy we use (Mushroom,
+Enemy3, Bat respectively), plus a $4-minimum premium tier that unlocks
+additional enemies from the *same* pack (e.g. Slime + Bush Monster alongside
+Mushroom; Enemy1 + Enemy2 alongside Enemy3; Ghost Warrior + Evil Creature
+alongside Bat). **We've only ever used the free-tier enemy from each pack** —
+confirmed by fetching each page directly, not by trusting a filename. If
+anyone later wants one of those premium-only enemies (including Enemy1/Enemy2
+from `flying-enemies`, which is what `gust-pixie`/`poisonous-spider` were
+originally — incorrectly — documented as using), that requires actually
+paying the $4 minimum; don't commit those files without confirming the
+pack was purchased.
 
 ## History
 
@@ -49,11 +55,18 @@ commit those without confirming the pack was actually purchased.
 
 ## Credits
 
-- Phewcumber — Skeleton Pack (no credit required) — currently unused, sitting
-  in `dicey asset src/Possible/` as a candidate
-- MonoPixelArt — Flying Forest Monsters (credit appreciated)
-- *(credits for Forest_Monsters_FREE and DarkFantasyEnemies_FREE — TODO once
-  source links are filled in above)*
+- **MonoPixelArt** ([monopixelart.itch.io](https://monopixelart.itch.io)) —
+  Forest Monsters, Flying Forest Monsters, Dark Fantasy Enemies (all three
+  used above; credit appreciated). Also publishes Skeletons, Golems, and an
+  Animated Character pack we haven't used yet — check that profile page
+  first before sourcing new enemies, since most of what we've picked so far
+  has come from there.
+- **Phewcumber** ([phewcumber.itch.io/skeleton-pack](https://phewcumber.itch.io/skeleton-pack))
+  — Skeleton Pack (no credit required) — currently unused, sitting in
+  `dicey asset src/Possible/FREE_SkeletonPack_ByPhewcumber/` as a candidate.
+  **Not the same pack** as MonoPixelArt's own Skeletons Pack, which is a
+  separate unused candidate in `dicey asset src/Possible/Skeletons_Free_Pack/`
+  — don't conflate the two if either gets promoted to `Selected/` later.
 
 Do not commit paid-tier pack files to this public repo unless the license was
 actually purchased.
