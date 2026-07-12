@@ -2,12 +2,14 @@ import {
   CARD_BY_ID,
   MAX_CARDS_PER_TURN,
   RANDOM_DEBUFFS,
+  REWARD_CARD_IDS,
   REROLLS_PER_TURN,
+  STARTER_ENEMY_IDS,
   STATUS_CAPS,
   getCard,
   getDie,
+  makeEnemy,
   makePlayer,
-  makeSpider,
 } from "./content";
 import { matchRequirement, symbolOf } from "./dice";
 import { nextInt, pick, seedRng } from "./rng";
@@ -192,7 +194,14 @@ function startTurn(draft: GameState, side: Side): void {
     }
   }
 
-  if (draft.phase === "won" || draft.phase === "lost") return;
+  if (
+    draft.phase === "won" ||
+    draft.phase === "runWon" ||
+    draft.phase === "lost" ||
+    draft.phase === "draft"
+  ) {
+    return;
+  }
   rollAllForTurn(draft, side);
 }
 
@@ -204,10 +213,40 @@ function endOfTurnDecay(actor: Actor): void {
   }
 }
 
+/** Pick two distinct reward cards the player doesn't already own. */
+function rollDraftOffers(draft: GameState): [string, string] {
+  const pool = REWARD_CARD_IDS.filter((id) => !draft.player.hand.includes(id));
+  if (pool.length === 0) {
+    throw new Error("No cards left in the reward pool");
+  }
+  if (pool.length === 1) {
+    return [pool[0]!, pool[0]!];
+  }
+  const [first, rng1] = pick(draft.rng, pool);
+  draft.rng = rng1;
+  const rest = pool.filter((id) => id !== first);
+  const [second, rng2] = pick(draft.rng, rest);
+  draft.rng = rng2;
+  return [first, second];
+}
+
+function onEnemyDefeated(draft: GameState): void {
+  log(draft, `${draft.enemy.name} defeated!`);
+  if (!draft.run.enabled) {
+    draft.phase = "won";
+    return;
+  }
+  const relic = draft.enemy.passives[0];
+  draft.run.pendingRelic = relic ? structuredClone(relic) : null;
+  draft.run.draftOffers = rollDraftOffers(draft);
+  draft.phase = "draft";
+  log(draft, "Choose a card to add to your deck.");
+}
+
 /** Set win/loss phase if anyone is dead. Returns true if the game ended. */
 function checkGameOver(draft: GameState): boolean {
   if (draft.enemy.hp <= 0) {
-    draft.phase = "won";
+    onEnemyDefeated(draft);
     return true;
   }
   if (draft.player.hp <= 0) {
@@ -289,19 +328,100 @@ function spendAndResolve(draft: GameState, side: Side, cardId: string): void {
 // Public API — pure actions
 // ===========================================================================
 
-/** Create a fresh encounter and start the player's first turn. */
-export function newGame(seed: number | string): GameState {
+const SINGLE_ENCOUNTER_RUN: GameState["run"] = {
+  enabled: false,
+  fightIndex: 0,
+  draftOffers: null,
+  pendingRelic: null,
+};
+
+const EMPTY_RUN: GameState["run"] = {
+  enabled: true,
+  fightIndex: 0,
+  draftOffers: null,
+  pendingRelic: null,
+};
+
+/** Create a single encounter (tests/headless). Win ends the fight; no draft. */
+export function newGame(
+  seed: number | string,
+  enemyId: string = "dust-mite",
+): GameState {
   const base: GameState = {
     seed,
     rng: seedRng(seed),
     turn: 1,
     phase: "playerTurn",
     player: makePlayer(),
-    enemy: makeSpider(),
+    enemy: makeEnemy(enemyId),
+    run: SINGLE_ENCOUNTER_RUN,
     log: [],
   };
   const draft = clone(base);
   log(draft, `Encounter: ${draft.player.name} vs ${draft.enemy.name}.`);
+  startTurn(draft, "player");
+  return draft;
+}
+
+/** Start a full multi-fight run against the starter enemy pool. */
+export function newRun(seed: number | string): GameState {
+  const enemyId = STARTER_ENEMY_IDS[0]!;
+  const base: GameState = {
+    seed,
+    rng: seedRng(seed),
+    turn: 1,
+    phase: "playerTurn",
+    player: makePlayer(),
+    enemy: makeEnemy(enemyId),
+    run: { ...EMPTY_RUN },
+    log: [],
+  };
+  const draft = clone(base);
+  log(draft, `Run start — fight 1/${STARTER_ENEMY_IDS.length}.`);
+  log(draft, `Encounter: ${draft.player.name} vs ${draft.enemy.name}.`);
+  startTurn(draft, "player");
+  return draft;
+}
+
+/** Pick one of the two offered reward cards and advance the run. */
+export function pickDraftCard(state: GameState, cardId: string): GameState {
+  if (state.phase !== "draft") {
+    throw new Error("Not in draft phase");
+  }
+  const offers = state.run.draftOffers;
+  if (!offers?.includes(cardId)) {
+    throw new Error(`Illegal draft pick: ${cardId}`);
+  }
+
+  const draft = clone(state);
+  draft.player.hand.push(cardId);
+  log(draft, `Added ${getCard(cardId).name} to your deck.`);
+
+  const relic = draft.run.pendingRelic;
+  if (relic && !draft.player.passives.some((p) => p.id === relic.id)) {
+    draft.player.passives.push(relic);
+    log(draft, `Gained relic: ${relic.name}.`);
+  }
+
+  draft.run.draftOffers = null;
+  draft.run.pendingRelic = null;
+  draft.run.fightIndex++;
+
+  if (draft.run.fightIndex >= STARTER_ENEMY_IDS.length) {
+    draft.phase = "runWon";
+    log(draft, "Run complete!");
+    return draft;
+  }
+
+  draft.player.statuses = {};
+  const enemyId = STARTER_ENEMY_IDS[draft.run.fightIndex]!;
+  draft.enemy = makeEnemy(enemyId);
+  draft.turn = 1;
+  draft.phase = "playerTurn";
+  log(
+    draft,
+    `Fight ${draft.run.fightIndex + 1}/${STARTER_ENEMY_IDS.length}: vs ${draft.enemy.name}.`,
+  );
   startTurn(draft, "player");
   return draft;
 }
@@ -331,15 +451,35 @@ export function toggleHold(state: GameState, dieIndex: number): GameState {
   return draft;
 }
 
+/** Whether any of the actor's dice would change on a reroll. */
+function hasRerollableDice(actor: Actor): boolean {
+  return actor.dice.some((d) => !d.held && !d.spent);
+}
+
 /** Spend one reroll: reroll all of the player's non-held, non-spent dice. */
 export function reroll(state: GameState): GameState {
   const draft = clone(state);
-  if (draft.phase !== "playerTurn" || draft.player.rollsRemaining <= 0) return draft;
+  if (
+    draft.phase !== "playerTurn" ||
+    draft.player.rollsRemaining <= 0 ||
+    !hasRerollableDice(draft.player)
+  ) {
+    return draft;
+  }
   for (const die of draft.player.dice) {
     if (!die.held && !die.spent) rollDie(draft, die);
   }
   draft.player.rollsRemaining--;
   return draft;
+}
+
+/** Whether the player may spend a reroll right now. */
+export function canReroll(state: GameState): boolean {
+  return (
+    state.phase === "playerTurn" &&
+    state.player.rollsRemaining > 0 &&
+    hasRerollableDice(state.player)
+  );
 }
 
 /** Whether the player may currently play `cardId`. */

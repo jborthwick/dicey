@@ -146,7 +146,24 @@ export interface Actor {
 // Game state
 // ---------------------------------------------------------------------------
 
-export type Phase = "playerTurn" | "enemyTurn" | "won" | "lost";
+export type Phase =
+  | "playerTurn"
+  | "enemyTurn"
+  | "draft"
+  | "won"
+  | "runWon"
+  | "lost";
+
+/** Multi-fight run metadata. Single-encounter mode sets `enabled: false`. */
+export interface RunProgress {
+  enabled: boolean;
+  /** Index of the current fight in `STARTER_ENEMY_IDS`. */
+  fightIndex: number;
+  /** Two reward cards offered after a fight win; null outside draft. */
+  draftOffers: [string, string] | null;
+  /** Relic from the enemy just defeated; applied when a draft card is picked. */
+  pendingRelic: Passive | null;
+}
 
 export interface GameState {
   seed: number | string;
@@ -155,6 +172,7 @@ export interface GameState {
   phase: Phase;
   player: Actor;
   enemy: Actor;
+  run: RunProgress;
   /** Human-readable event log, newest last. */
   log: string[];
 }

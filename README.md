@@ -1,5 +1,7 @@
 # Dicey
 
+**[Play Now](https://jborthwick.github.io/dicey/)**
+
 A web prototype of a Yahtzee-style dice battler — inspired by *Dicey Elementalist*
 and *Slice & Dice*. Roll five dice, hold and reroll, then spend matched elemental
 symbols to play cards that damage the enemy or apply statuses. The enemy rolls and
@@ -39,3 +41,19 @@ Logic and rendering are kept completely separate:
 See [CLAUDE.md](CLAUDE.md) for the model and contributor conventions.
 
 Web-only for now; intended to be wrapped with Capacitor for iOS later.
+
+## Roadmap
+
+The current build is a **multi-fight run** against the starter enemy pool with a
+**2-card starter hand**. After each win you pick **1 of 2** reward cards and gain
+that enemy's relic. The intended run loop:
+
+1. Start with **2 starter cards** and no relics.
+2. Fight enemies from an ordered early pool (`STARTER_ENEMY_IDS` in `src/core/content.ts`).
+3. On win: pick **1 of 2** offered reward cards; gain that enemy's **relic** (passive).
+4. Repeat until the run ends.
+
+Content pools (`STARTER_CARD_IDS`, `REWARD_CARD_IDS`, enemy definitions) all live in
+[`src/core/content.ts`](src/core/content.ts). Run rules (`newRun`, `pickDraftCard`) live in
+[`src/core/game.ts`](src/core/game.ts). The Poisonous Spider remains in the pool
+as a harder mid/late fight — not the default encounter.

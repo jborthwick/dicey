@@ -28,6 +28,37 @@ export const STATUS_CAPS: Partial<Record<Status, number>> = {
 };
 
 // ---------------------------------------------------------------------------
+// Card pools (run progression — draft/relic flow not wired yet)
+// ---------------------------------------------------------------------------
+
+/** Two cheap single-symbol cards the player starts every run with. */
+export const STARTER_CARD_IDS = ["expel", "ice-cone"] as const;
+
+/** Cards offered after defeating enemies (pick 1 of 2 — not implemented yet). */
+export const REWARD_CARD_IDS = [
+  "lick",
+  "tangling",
+  "blind-attack",
+  "physic-guidance",
+  "spark-bolt",
+  "tide-shield",
+  "twin-slash",
+  "venom-touch",
+  "hush",
+  "gust-slap",
+] as const;
+
+/** Early enemy order for runs. Fight 1 defaults to dust-mite. */
+export const STARTER_ENEMY_IDS = [
+  "dust-mite",
+  "puddle-slime",
+  "gust-pixie",
+  "poisonous-spider",
+] as const;
+
+export type StarterEnemyId = (typeof STARTER_ENEMY_IDS)[number];
+
+// ---------------------------------------------------------------------------
 // Dice
 // ---------------------------------------------------------------------------
 
@@ -50,7 +81,7 @@ export const DICE: DieDef[] = [
 // ---------------------------------------------------------------------------
 
 export const CARDS: CardDef[] = [
-  // --- Player cards (from the reference layout) ---
+  // --- Player starter / reward cards ---
   {
     id: "expel",
     name: "Expel",
@@ -58,6 +89,14 @@ export const CARDS: CardDef[] = [
     requirement: { kind: "symbols", symbol: "wind", count: 1 },
     effects: [{ kind: "damage", target: "enemy", min: 2, max: 6 }],
     text: "Deal 2-6 damage.",
+  },
+  {
+    id: "ice-cone",
+    name: "Ice Cone",
+    element: "water",
+    requirement: { kind: "symbols", symbol: "water", count: 1 },
+    effects: [{ kind: "damage", target: "enemy", min: 3, max: 3 }],
+    text: "Deal 3 damage.",
   },
   {
     id: "lick",
@@ -69,14 +108,6 @@ export const CARDS: CardDef[] = [
       { kind: "status", target: "enemy", status: "weaken", stacks: 1 },
     ],
     text: "Deal 3 damage. Weaken 1.",
-  },
-  {
-    id: "ice-cone",
-    name: "Ice Cone",
-    element: "water",
-    requirement: { kind: "symbols", symbol: "water", count: 1 },
-    effects: [{ kind: "damage", target: "enemy", min: 3, max: 3 }],
-    text: "Deal 3 damage.",
   },
   {
     id: "tangling",
@@ -105,8 +136,115 @@ export const CARDS: CardDef[] = [
     ],
     text: "Deal 8 damage. Inflict a random debuff.",
   },
+  {
+    id: "spark-bolt",
+    name: "Spark Bolt",
+    element: "light",
+    requirement: { kind: "symbols", symbol: "light", count: 1 },
+    effects: [{ kind: "damage", target: "enemy", min: 4, max: 4 }],
+    text: "Deal 4 damage.",
+  },
+  {
+    id: "tide-shield",
+    name: "Tide Shield",
+    element: "water",
+    requirement: { kind: "symbols", symbol: "water", count: 1 },
+    effects: [{ kind: "block", target: "self", amount: 4 }],
+    text: "Gain 4 Block.",
+  },
+  {
+    id: "twin-slash",
+    name: "Twin Slash",
+    element: "wind",
+    requirement: { kind: "pairs", count: 1 },
+    effects: [{ kind: "damage", target: "enemy", min: 4, max: 5 }],
+    text: "Deal 4-5 damage.",
+  },
+  {
+    id: "venom-touch",
+    name: "Venom Touch",
+    element: "earth",
+    requirement: { kind: "symbols", symbol: "earth", count: 1 },
+    effects: [
+      { kind: "damage", target: "enemy", min: 2, max: 2 },
+      { kind: "status", target: "enemy", status: "poison", stacks: 1 },
+    ],
+    text: "Deal 2 damage. Inflict 1 Poison.",
+  },
+  {
+    id: "hush",
+    name: "Hush",
+    element: "light",
+    requirement: { kind: "symbols", symbol: "light", count: 1 },
+    effects: [
+      { kind: "damage", target: "enemy", min: 2, max: 2 },
+      { kind: "status", target: "enemy", status: "silence", stacks: 1 },
+    ],
+    text: "Deal 2 damage. Silence 1.",
+  },
+  {
+    id: "gust-slap",
+    name: "Gust Slap",
+    element: "wind",
+    requirement: { kind: "symbols", symbol: "wind", count: 1 },
+    effects: [{ kind: "damage", target: "enemy", min: 4, max: 4 }],
+    text: "Deal 4 damage.",
+  },
 
-  // --- Enemy cards ---
+  // --- Shared weak enemy cards ---
+  {
+    id: "nibble",
+    name: "Nibble",
+    element: "earth",
+    requirement: { kind: "symbols", symbol: "earth", count: 1 },
+    effects: [{ kind: "damage", target: "enemy", min: 2, max: 4 }],
+    text: "Deal 2-4 damage.",
+  },
+  {
+    id: "pebble-toss",
+    name: "Pebble Toss",
+    element: "earth",
+    requirement: { kind: "symbols", symbol: "earth", count: 1 },
+    effects: [{ kind: "damage", target: "enemy", min: 3, max: 3 }],
+    text: "Deal 3 damage.",
+  },
+  {
+    id: "splash",
+    name: "Splash",
+    element: "water",
+    requirement: { kind: "symbols", symbol: "water", count: 1 },
+    effects: [{ kind: "damage", target: "enemy", min: 2, max: 3 }],
+    text: "Deal 2-3 damage.",
+  },
+  {
+    id: "drip",
+    name: "Drip",
+    element: "water",
+    requirement: { kind: "symbols", symbol: "water", count: 1 },
+    effects: [
+      { kind: "damage", target: "enemy", min: 1, max: 1 },
+      { kind: "status", target: "enemy", status: "poison", stacks: 1 },
+    ],
+    text: "Deal 1 damage. Inflict 1 Poison.",
+  },
+  {
+    id: "breeze",
+    name: "Breeze",
+    element: "wind",
+    requirement: { kind: "symbols", symbol: "wind", count: 1 },
+    effects: [{ kind: "damage", target: "enemy", min: 2, max: 4 }],
+    text: "Deal 2-4 damage.",
+  },
+  {
+    id: "mewl",
+    name: "Mewl",
+    element: "special",
+    requirement: { kind: "symbols", symbol: "wind", count: 1 },
+    effects: [{ kind: "block", target: "self", amount: 2 }],
+    text: "Gain 2 Block.",
+  },
+
+  // --- Spider cards ---
   {
     id: "bite",
     name: "Bite",
@@ -151,6 +289,27 @@ export const RANDOM_DEBUFFS = ["poison", "silence", "entangle", "weaken"] as con
 // Passives (relics)
 // ---------------------------------------------------------------------------
 
+const DUST_SHELL: Passive = {
+  id: "dust-shell",
+  name: "Dust Shell",
+  when: "opponentTurnStart",
+  effect: { kind: "block", target: "self", amount: 1 },
+};
+
+const SLIMY_COATING: Passive = {
+  id: "slimy-coating",
+  name: "Slimy Coating",
+  when: "opponentTurnStart",
+  effect: { kind: "status", target: "enemy", status: "poison", stacks: 1 },
+};
+
+const GUST_WISP: Passive = {
+  id: "gust-wisp",
+  name: "Gust Wisp",
+  when: "opponentTurnStart",
+  effect: { kind: "status", target: "enemy", status: "weaken", stacks: 1 },
+};
+
 /** The reference's relic: at the start of the opponent's turn, poison them. */
 const POISONOUS_EYEBALL: Passive = {
   id: "poisonous-eyeball",
@@ -182,24 +341,70 @@ export function makePlayer(): Actor {
     maxHp: 86,
     statuses: {},
     dice: makeDice(["gale", "spark", "tide", "prism", "gale"]),
-    hand: ["expel", "lick", "ice-cone", "tangling", "blind-attack", "physic-guidance"],
+    hand: [...STARTER_CARD_IDS],
     rollsRemaining: REROLLS_PER_TURN,
     passives: [],
   };
 }
 
+export function makeEnemy(id: StarterEnemyId | string): Actor {
+  switch (id) {
+    case "dust-mite":
+      return {
+        id: "dust-mite",
+        name: "Dust Mite",
+        hp: 40,
+        maxHp: 40,
+        statuses: {},
+        dice: makeDice(["stone", "tide", "gale", "spark", "gale"]),
+        hand: ["nibble", "pebble-toss"],
+        rollsRemaining: REROLLS_PER_TURN,
+        passives: [DUST_SHELL],
+      };
+    case "puddle-slime":
+      return {
+        id: "puddle-slime",
+        name: "Puddle Slime",
+        hp: 55,
+        maxHp: 55,
+        statuses: {},
+        dice: makeDice(["tide", "web", "tide", "stone", "spark"]),
+        hand: ["splash", "drip"],
+        rollsRemaining: REROLLS_PER_TURN,
+        passives: [SLIMY_COATING],
+      };
+    case "gust-pixie":
+      return {
+        id: "gust-pixie",
+        name: "Gust Pixie",
+        hp: 50,
+        maxHp: 50,
+        statuses: {},
+        dice: makeDice(["gale", "gale", "spark", "prism", "gale"]),
+        hand: ["breeze", "mewl"],
+        rollsRemaining: REROLLS_PER_TURN,
+        passives: [GUST_WISP],
+      };
+    case "poisonous-spider":
+      return {
+        id: "poisonous-spider",
+        name: "Poisonous Spider",
+        hp: 102,
+        maxHp: 102,
+        statuses: {},
+        dice: makeDice(["fang", "web", "fang", "stone", "web"]),
+        hand: ["bite", "web-shot", "venom-spit", "skitter"],
+        rollsRemaining: REROLLS_PER_TURN,
+        passives: [POISONOUS_EYEBALL],
+      };
+    default:
+      throw new Error(`Unknown enemy: ${id}`);
+  }
+}
+
+/** @deprecated Prefer makeEnemy("poisonous-spider") — kept for tests/imports. */
 export function makeSpider(): Actor {
-  return {
-    id: "poisonous-spider",
-    name: "Poisonous Spider",
-    hp: 102,
-    maxHp: 102,
-    statuses: {},
-    dice: makeDice(["fang", "web", "fang", "stone", "web"]),
-    hand: ["bite", "web-shot", "venom-spit", "skitter"],
-    rollsRemaining: REROLLS_PER_TURN,
-    passives: [POISONOUS_EYEBALL],
-  };
+  return makeEnemy("poisonous-spider");
 }
 
 // ---------------------------------------------------------------------------

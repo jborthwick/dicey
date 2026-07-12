@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   canPlayCard,
+  canReroll,
   endTurn,
   endTurnTimeline,
   newGame,
+  newRun,
+  pickDraftCard,
   playCard,
   reroll,
   toggleHold,
@@ -88,7 +91,10 @@ describe("game — purity & determinism", () => {
       let s: GameState = newGame(seed);
       let guard = 0;
       while (s.phase === "playerTurn" && guard++ < 100) {
-        while (s.player.rollsRemaining > 0 && !s.player.hand.some((c) => canPlayCard(s, c))) {
+        while (
+          canReroll(s) &&
+          !s.player.hand.some((c) => canPlayCard(s, c))
+        ) {
           s = reroll(s);
         }
         const card = s.player.hand.find((c) => canPlayCard(s, c));
@@ -106,11 +112,12 @@ describe("game — starting state", () => {
     expect(s.phase).toBe("playerTurn");
     expect(s.turn).toBe(1);
     expect(s.player.hp).toBe(86);
-    expect(s.enemy.hp).toBe(102);
+    expect(s.enemy.hp).toBe(40);
+    expect(s.enemy.name).toBe("Dust Mite");
+    expect(s.player.hand).toEqual(["expel", "ice-cone"]);
     expect(s.player.dice).toHaveLength(5);
-    // Turn 1 is clean: the relic's poison is applied but doesn't tick yet.
     expect(s.player.hp).toBe(s.player.maxHp);
-    expect(s.player.statuses.poison).toBe(2);
+    expect(s.player.statuses.poison ?? 0).toBe(0);
   });
 
   it("rejects illegal plays", () => {
@@ -137,11 +144,22 @@ describe("game — reroll consumes a reroll and respects holds", () => {
     expect(s.player.dice[idx]!.held).toBe(true);
     expect(s.player.dice[idx]!.face).toBe(face);
   });
+
+  it("does not reroll or consume a reroll when every die is held or spent", () => {
+    let s = newGame(1);
+    for (let i = 0; i < s.player.dice.length; i++) {
+      s = toggleHold(s, i);
+    }
+    expect(canReroll(s)).toBe(false);
+    const before = s.player.rollsRemaining;
+    s = reroll(s);
+    expect(s.player.rollsRemaining).toBe(before);
+  });
 });
 
 describe("game — poison ramps via the relic", () => {
-  it("player takes escalating poison each turn", () => {
-    let s = newGame(7);
+  it("player takes escalating poison each turn against the spider", () => {
+    let s = newGame(7, "poisonous-spider");
     const hp0 = s.player.hp;
     s = endTurn(s); // -> enemy turn -> back to player turn 2, poison ticks
     expect(s.turn).toBe(2);
@@ -155,7 +173,7 @@ describe("game — entangle is bounded and never softlocks", () => {
   // Drive a realistic run (the flow that surfaced the bug: hold + reroll + end)
   // and assert entangle stays capped and never locks the whole pool.
   function driveAndInspect(seed: number) {
-    let s = newGame(seed);
+    let s = newGame(seed, "poisonous-spider");
     const observations: { entangle: number; spent: number; entangled: number; dice: number }[] =
       [];
     let guard = 0;
@@ -171,7 +189,7 @@ describe("game — entangle is bounded and never softlocks", () => {
       // spend everything affordable, and end.
       const holdable = s.player.dice.findIndex((d) => !d.spent);
       if (holdable >= 0) s = toggleHold(s, holdable);
-      if (s.player.rollsRemaining > 0) s = reroll(s);
+      if (canReroll(s)) s = reroll(s);
       let inner = 0;
       while (s.phase === "playerTurn" && inner++ < 10) {
         const card = s.player.hand.find((c) => canPlayCard(s, c));
@@ -225,12 +243,48 @@ describe("endTurnTimeline", () => {
   });
 });
 
+describe("game — run progression", () => {
+  it("enters draft after beating the first enemy in a run", () => {
+    let s = newRun(99);
+    let guard = 0;
+    while (s.phase === "playerTurn" && guard++ < 80) {
+      while (canReroll(s) && !s.player.hand.some((c) => canPlayCard(s, c))) {
+        s = reroll(s);
+      }
+      const card = s.player.hand.find((c) => canPlayCard(s, c));
+      s = card ? playCard(s, card) : endTurn(s);
+    }
+    expect(s.phase).toBe("draft");
+    expect(s.run.draftOffers).toHaveLength(2);
+    expect(s.run.pendingRelic?.name).toBe("Dust Shell");
+  });
+
+  it("pickDraftCard adds the card, relic, and starts the next fight", () => {
+    let s = newRun(99);
+    let guard = 0;
+    while (s.phase === "playerTurn" && guard++ < 80) {
+      while (canReroll(s) && !s.player.hand.some((c) => canPlayCard(s, c))) {
+        s = reroll(s);
+      }
+      const card = s.player.hand.find((c) => canPlayCard(s, c));
+      s = card ? playCard(s, card) : endTurn(s);
+    }
+    const [pick] = s.run.draftOffers!;
+    s = pickDraftCard(s, pick);
+    expect(s.phase).toBe("playerTurn");
+    expect(s.run.fightIndex).toBe(1);
+    expect(s.enemy.name).toBe("Puddle Slime");
+    expect(s.player.hand).toContain(pick);
+    expect(s.player.passives.some((p) => p.id === "dust-shell")).toBe(true);
+  });
+});
+
 describe("game — reaches a terminal state", () => {
   it("ends in win or loss within a bounded number of turns", () => {
     let s = newGame(42);
     let guard = 0;
     while (s.phase === "playerTurn" && guard++ < 100) {
-      while (s.player.rollsRemaining > 0 && !s.player.hand.some((c) => canPlayCard(s, c))) {
+      while (canReroll(s) && !s.player.hand.some((c) => canPlayCard(s, c))) {
         s = reroll(s);
       }
       const card = s.player.hand.find((c) => canPlayCard(s, c));

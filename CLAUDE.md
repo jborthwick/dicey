@@ -4,7 +4,8 @@ A web prototype of a Yahtzee-style dice battler (inspired by *Dicey Elementalist
 *Slice & Dice*). Core loop: roll a pool of 5 dice, hold/reroll a fixed number of
 times, then spend matched dice symbols to play cards that damage the enemy or
 apply statuses. The enemy takes its turn the same way — it rolls its own dice and
-plays from its own card set. Turn-based, single combat encounter for now.
+plays from its own card set. Turn-based multi-fight runs against the starter enemy
+pool; the player begins with a 2-card hand and drafts after each win.
 
 Target is **web-only**, to be wrapped with Capacitor for iOS later — so nothing
 browser-specific that can't run in a WebView.
@@ -61,7 +62,7 @@ Same seed ⇒ identical run. Determinism is a hard invariant; there's a test for
 | Seeded PRNG (mulberry32, state-threaded) | `src/core/rng.ts` |
 | Dice symbol resolution + requirement matching | `src/core/dice.ts` |
 | The rules: `newGame`, `roll`, `toggleHold`, `reroll`, `playCard`, `endTurn` | `src/core/game.ts` |
-| Content: dice, cards, enemy, passives, tuning | `src/core/content.ts` |
+| Content: dice, cards, enemies, passives, tuning | `src/core/content.ts` |
 | React shell | `src/ui/` |
 
 ## Model notes (so you don't relearn them)
@@ -88,11 +89,16 @@ Same seed ⇒ identical run. Determinism is a hard invariant; there's a test for
 - **Entangle can't softlock or run away.** It's capped via `STATUS_CAPS` in
   `content.ts` (currently 2), and `rollAllForTurn` never locks your *last* die, so
   you always keep usable dice. Add caps for other statuses there if they misbehave.
-- **Balance is a known open question.** With current numbers, the spider's
-  Poisonous Eyeball relic adds +2 poison every player turn while poison only
-  decays by 1 → runaway poison (still uncapped), and the naive headless auto-player
-  loses on every seed. That's tuning, not a correctness bug. Adjust in `content.ts`
-  (numbers only — the rules in `game.ts` shouldn't need to change).
+- **Run progression.** `newRun(seed)` walks `STARTER_ENEMY_IDS` in order. On kill,
+  phase becomes `draft` with two offers from `REWARD_CARD_IDS` (excluding cards
+  already owned) plus the defeated enemy's relic pending. `pickDraftCard` adds the
+  card + relic, clears combat statuses, and starts the next fight — or `runWon` after
+  the last enemy. `newGame(seed, enemyId?)` remains for single-encounter tests
+  (`run.enabled = false`, phase `won` on kill).
+- **Balance is a known open question.** The spider's Poisonous Eyeball still adds
+  +2 poison every player turn while poison only decays by 1 → runaway poison when
+  fighting it. Early enemies are tuned softer for onboarding. Adjust numbers in
+  `content.ts` only — the rules in `game.ts` shouldn't need to change.
 
 ## Git commit conventions
 
