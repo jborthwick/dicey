@@ -179,6 +179,7 @@ button:disabled {
   gap: 8px;
 }
 .die {
+  position: relative;
   width: 48px;
   height: 48px;
   border-radius: 10px;
@@ -187,12 +188,29 @@ button:disabled {
   display: grid;
   place-items: center;
   padding: 0;
-  /* Plays on mount — and each roll remounts the die via its React key. */
-  animation: die-roll 440ms cubic-bezier(0.2, 0.85, 0.3, 1.2) both;
+  /* Plays on mount — and each roll remounts the die via its React key.
+     --roll-delay staggers a multi-die roll into a cascade. */
+  animation: die-roll 440ms cubic-bezier(0.2, 0.85, 0.3, 1.2) var(--roll-delay, 0ms) both;
 }
 .die-glyph {
   font-size: 24px;
   line-height: 1;
+}
+
+/* Soft contact shadow beneath each die; pops as the die lands ("thud"). */
+.die::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 66%;
+  height: 7px;
+  transform: translateX(-50%) scale(1);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55), transparent 72%);
+  opacity: 0.26;
+  pointer-events: none;
+  animation: die-land 440ms ease-out var(--roll-delay, 0ms) both;
 }
 
 /* A quick 2D tumble: drop in, over-rotate, settle with a squash bounce. */
@@ -218,8 +236,26 @@ button:disabled {
   }
 }
 
+/* Shadow hides while the die is airborne, then pops wide and settles. */
+@keyframes die-land {
+  0%,
+  55% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.35);
+  }
+  72% {
+    opacity: 0.5;
+    transform: translateX(-50%) scale(1.18);
+  }
+  100% {
+    opacity: 0.26;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .die {
+  .die,
+  .die::after {
     animation: none;
   }
 }

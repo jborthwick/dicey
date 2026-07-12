@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   canPlayCard,
   endTurn,
@@ -8,11 +8,29 @@ import {
   reroll,
   symbolOf,
   toggleHold,
+  SYMBOLS,
   type Actor,
   type CardDef,
+  type Die,
   type GameState,
+  type Symbol,
 } from "../core/index";
 import { ELEMENT_COLOR, STATUS_UI, SYMBOL_UI } from "./symbols";
+
+/** Cosmetic roll tuning (UI-only — never touches core RNG or state). */
+const SHUFFLE_MS = 280; // how long a rolling die flickers before settling
+const FLICKER_MS = 50; // interval between flicker frames
+const STAGGER_MS = 45; // per-die delay so a multi-die roll cascades
+
+const REDUCED_MOTION =
+  typeof window !== "undefined" &&
+  !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+/** A throwaway random face for the flicker — Math.random is fine here; this is
+ *  pure cosmetics and must not perturb the seeded core RNG. */
+function randomSymbol(): Symbol {
+  return SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]!;
+}
 
 /**
  * The UI is a thin shell over the pure core: it holds a `GameState`, renders it,
@@ -177,26 +195,26 @@ function DiceTray({
 }) {
   const dice = state.player.dice;
   const canAct = state.phase === "playerTurn";
+  // Stagger only the dice that can actually roll, so a partial reroll of one or
+  // two dice stays snappy instead of waiting out phantom slots.
+  let rollOrder = 0;
   return (
     <section className="tray">
       <div className="dice">
         {dice.map((d, i) => {
-          const sym = symbolOf(d);
-          const ui = SYMBOL_UI[sym];
-          const cls = ["die", d.held ? "held" : "", d.spent ? "spent" : ""].join(" ");
+          const willRoll = !d.held && !d.spent;
+          const delay = willRoll ? rollOrder++ * STAGGER_MS : 0;
           return (
             // The nonce in the key remounts the die when it rolls, replaying the
-            // tumble animation defined on `.die`.
-            <button
+            // tumble (CSS) and the symbol shuffle (DieView's mount effect).
+            <DieView
               key={`${i}-${rollNonce[i] ?? 0}`}
-              className={cls}
-              style={{ borderColor: ui.color }}
-              disabled={!canAct || d.spent}
-              onClick={() => onToggle(i)}
-              title={`${ui.label}${d.held ? " (held)" : ""}${d.spent ? " (spent)" : ""}`}
-            >
-              <span className="die-glyph">{ui.glyph}</span>
-            </button>
+              die={d}
+              index={i}
+              delay={delay}
+              canAct={canAct}
+              onToggle={onToggle}
+            />
           );
         })}
       </div>
@@ -212,6 +230,72 @@ function DiceTray({
         </button>
       </div>
     </section>
+  );
+}
+
+/**
+ * A single die. Mounting one (which the parent forces via its `key` whenever the
+ * die actually rolls) kicks off a brief symbol shuffle — the glyph flickers
+ * through random faces before settling on the real one — timed to land with the
+ * CSS tumble. The border keeps the die's *real* element color the whole time, so
+ * only the face flickers.
+ */
+function DieView({
+  die,
+  index,
+  delay,
+  canAct,
+  onToggle,
+}: {
+  die: Die;
+  index: number;
+  delay: number;
+  canAct: boolean;
+  onToggle: (i: number) => void;
+}) {
+  const realSym = symbolOf(die);
+  const ui = SYMBOL_UI[realSym];
+  const [shown, setShown] = useState<Symbol>(() =>
+    REDUCED_MOTION ? realSym : randomSymbol(),
+  );
+
+  // Mount-only: the die is remounted (fresh key) every time it rolls.
+  useEffect(() => {
+    if (REDUCED_MOTION) {
+      setShown(realSym);
+      return;
+    }
+    let flicker: ReturnType<typeof setInterval> | undefined;
+    // Begin flickering as the die drops in (after its stagger delay)…
+    const start = setTimeout(() => {
+      flicker = setInterval(() => setShown(randomSymbol()), FLICKER_MS);
+    }, delay);
+    // …then settle on the true face before the tumble finishes.
+    const settle = setTimeout(() => {
+      if (flicker) clearInterval(flicker);
+      setShown(realSym);
+    }, delay + SHUFFLE_MS);
+    return () => {
+      clearTimeout(start);
+      clearTimeout(settle);
+      if (flicker) clearInterval(flicker);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const cls = ["die", die.held ? "held" : "", die.spent ? "spent" : ""].join(" ");
+  return (
+    <button
+      className={cls}
+      style={
+        { borderColor: ui.color, "--roll-delay": `${delay}ms` } as CSSProperties
+      }
+      disabled={!canAct || die.spent}
+      onClick={() => onToggle(index)}
+      title={`${ui.label}${die.held ? " (held)" : ""}${die.spent ? " (spent)" : ""}`}
+    >
+      <span className="die-glyph">{SYMBOL_UI[shown].glyph}</span>
+    </button>
   );
 }
 
