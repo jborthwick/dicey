@@ -477,6 +477,35 @@ button:disabled {
   padding: 1px 5px;
 }
 
+/* Wraps the hand + log so a single overlay can dim both while the enemy acts,
+   without touching the enemy panel above (which has its own .acting glow). */
+.player-zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dim-overlay {
+  position: absolute;
+  /* Flush with .player-zone's own box — an inset bleed here would still count
+     toward .fight-scroll's scrollable area (even clipped/decorative overflow
+     does), popping in a vertical scrollbar that isn't there otherwise. */
+  inset: 0;
+  border-radius: 12px;
+  background: rgba(10, 6, 20, 0.6);
+  z-index: 3;
+  pointer-events: auto;
+  animation: dim-fade 200ms ease-out both;
+}
+@keyframes dim-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* ---- cards ---- */
 .cards {
   display: grid;
@@ -604,7 +633,8 @@ button:disabled {
   .die::after,
   .die.popping,
   .die-pop-glow,
-  .die-pop-ring {
+  .die-pop-ring,
+  .dim-overlay {
     animation: none;
   }
   .end-turn.nudge {

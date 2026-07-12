@@ -397,9 +397,11 @@ export default function App() {
           </div>
         )}
 
-        <CardGrid state={state} onPlay={playPlayerCard} disabled={drafting || over} />
-
-        <Log lines={state.log} />
+        <div className="player-zone">
+          <CardGrid state={state} onPlay={playPlayerCard} disabled={drafting || over} />
+          <Log lines={state.log} />
+          {resolving && <div className="dim-overlay" aria-hidden="true" />}
+        </div>
       </div>
 
       {/* Pinned dock: HP + dice/actions stay reachable on short phones. */}
