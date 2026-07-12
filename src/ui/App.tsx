@@ -32,6 +32,7 @@ const STAGGER_MS = 45; // per-die delay so a multi-die roll cascades
 const RESOLVE_DELAY = 1000; // pause between beats of the enemy's turn
 const PROJECTILE_MS = 240; // flight time of a played-card projectile
 const FLOATER_MS = 650; // lifetime of a floating damage number
+const POP_MS = 380; // glow-pop duration when a die is spent on a card
 
 /** Which side's HP bar a card's effect is aimed at, from the actor's frame:
  *  offensive/debuff cards fly at the opponent, self-buffs at the caster. */
@@ -119,6 +120,29 @@ function useRollShuffle(realSym: Symbol, delay: number): Symbol {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return shown;
+}
+
+/**
+ * Glow-pop when a die transitions to spent — i.e. it just paid for a card.
+ * Doesn't fire for entangled dice (spent by a status lock, not a play) or for
+ * a die that's already spent when this component mounts (e.g. the entangled
+ * lock applied at roll time, before this hook's effect ever sees a change).
+ * Self-contained: no App-level state, the component just watches its own prop.
+ */
+function useSpentPop(spent: boolean, entangled: boolean): boolean {
+  const [popping, setPopping] = useState(false);
+  const wasSpent = useRef(spent);
+  useEffect(() => {
+    if (!wasSpent.current && spent && !entangled && !REDUCED_MOTION) {
+      setPopping(true);
+      const t = setTimeout(() => setPopping(false), POP_MS);
+      wasSpent.current = spent;
+      return () => clearTimeout(t);
+    }
+    wasSpent.current = spent;
+    return undefined;
+  }, [spent, entangled]);
+  return popping;
 }
 
 /**
@@ -827,6 +851,7 @@ function DieView({
   const realSym = symbolOf(die);
   const ui = SYMBOL_UI[realSym];
   const shown = useRollShuffle(realSym, delay);
+  const popping = useSpentPop(die.spent, die.entangled);
 
   // Entangled implies held+spent, but it should read as a status, not as a die
   // you spent — so it takes its own style and suppresses the held/spent looks.
@@ -835,6 +860,7 @@ function DieView({
     die.entangled ? "entangled" : "",
     !die.entangled && die.held ? "held" : "",
     !die.entangled && die.spent ? "spent" : "",
+    popping ? "popping" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -847,6 +873,7 @@ function DieView({
       style={
         {
           borderColor: die.entangled ? undefined : ui.color,
+          color: ui.color,
           "--roll-delay": `${delay}ms`,
         } as CSSProperties
       }
@@ -859,6 +886,12 @@ function DieView({
         <span className="die-web" aria-hidden>
           🕸️
         </span>
+      )}
+      {popping && (
+        <>
+          <span className="die-pop-glow" aria-hidden />
+          <span className="die-pop-ring" aria-hidden />
+        </>
       )}
     </button>
   );
