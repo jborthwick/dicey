@@ -719,6 +719,8 @@ function DiceTray({
 }) {
   const dice = state.player.dice;
   const canAct = state.phase === "playerTurn";
+  const canPlayAny = canAct && state.player.hand.some((id) => canPlayCard(state, id));
+  const endTurnNudge = canAct && !canPlayAny && !canReroll(state);
   // Stagger only the dice that can actually roll, so a partial reroll of one or
   // two dice stays snappy instead of waiting out phantom slots.
   let rollOrder = 0;
@@ -755,7 +757,11 @@ function DiceTray({
             >
               Reroll ({state.player.rollsRemaining})
             </button>
-            <button className="end-turn" disabled={!canAct} onClick={onEndTurn}>
+            <button
+              className={`end-turn${endTurnNudge ? " nudge" : ""}`}
+              disabled={!canAct}
+              onClick={onEndTurn}
+            >
               End Turn →
             </button>
           </>
