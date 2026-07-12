@@ -195,19 +195,36 @@ button:disabled {
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  min-height: 220px;
-  margin: 4px 0 8px;
+  /* Keep the hand (and a peek of a 2nd row) above the pinned dock. */
+  height: clamp(88px, 14vh, 140px);
+  margin: 4px 0 6px;
+  overflow: hidden;
+}
+.enemy-sprite {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  height: 100%;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.45));
+}
+/* Inline canvas w/h are the source pixel size × scale (~256px); fit the stage. */
+.enemy-sprite canvas,
+.enemy-sprite .sprite-loading,
+.enemy-sprite .sprite-missing {
+  height: 100% !important;
+  width: auto !important;
+  max-width: 100%;
 }
 
-/* Short phones: reclaim sprite floor so a 2-row hand still leaves room to scroll. */
+/* Short phones: reclaim more room for a 2-row hand above the pinned dock. */
 @media (max-height: 740px) {
   .enemy-stage {
-    min-height: 150px;
+    height: clamp(72px, 12vh, 112px);
   }
 }
 @media (max-height: 640px) {
   .enemy-stage {
-    min-height: 112px;
+    height: clamp(64px, 11vh, 96px);
   }
   .card {
     min-height: 88px;
@@ -216,11 +233,13 @@ button:disabled {
   .log {
     min-height: 72px;
   }
-}
-.enemy-sprite {
-  display: flex;
-  justify-content: center;
-  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.45));
+  .player {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+  .tray {
+    padding: 8px 10px;
+  }
 }
 .sprite {
   image-rendering: pixelated;
