@@ -187,10 +187,41 @@ button:disabled {
   display: grid;
   place-items: center;
   padding: 0;
+  /* Plays on mount — and each roll remounts the die via its React key. */
+  animation: die-roll 440ms cubic-bezier(0.2, 0.85, 0.3, 1.2) both;
 }
 .die-glyph {
   font-size: 24px;
   line-height: 1;
+}
+
+/* A quick 2D tumble: drop in, over-rotate, settle with a squash bounce. */
+@keyframes die-roll {
+  0% {
+    transform: translateY(-40%) rotate(-200deg) scale(0.6);
+    opacity: 0.1;
+  }
+  45% {
+    opacity: 1;
+  }
+  60% {
+    transform: translateY(0) rotate(14deg) scale(1.14);
+  }
+  78% {
+    transform: translateY(-9%) rotate(-5deg) scale(0.96);
+  }
+  90% {
+    transform: translateY(0) rotate(2deg) scale(1.02);
+  }
+  100% {
+    transform: translateY(0) rotate(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .die {
+    animation: none;
+  }
 }
 .die.held {
   box-shadow: 0 0 0 2px var(--ok);

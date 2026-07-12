@@ -24,7 +24,37 @@ export default function App() {
   const [seedInput, setSeedInput] = useState("dicey-1");
   const [state, setState] = useState<GameState>(() => newGame("dicey-1"));
 
-  const restart = () => setState(newGame(seedInput || Date.now().toString()));
+  // A per-die counter, bumped whenever that die actually rolls. It feeds the
+  // die's React `key`, so a rolled die remounts and replays its CSS tumble while
+  // held/spent dice keep their key and stay put. Pure UI juice — the core never
+  // sees it.
+  const [rollNonce, setRollNonce] = useState<number[]>(() =>
+    state.player.dice.map(() => 0),
+  );
+  const bumpAll = () => setRollNonce((prev) => prev.map((n) => n + 1));
+  const bumpSome = (indices: number[]) =>
+    setRollNonce((prev) => prev.map((n, i) => (indices.includes(i) ? n + 1 : n)));
+
+  const doReroll = () => {
+    // Only the dice reroll actually touches get a new nonce.
+    const rolling = state.player.dice.flatMap((d, i) =>
+      !d.held && !d.spent ? [i] : [],
+    );
+    bumpSome(rolling);
+    setState(reroll(state));
+  };
+
+  const doEndTurn = () => {
+    const next = endTurn(state);
+    setState(next);
+    // Turn start re-rolls every player die (unless the game just ended).
+    if (next.phase === "playerTurn") bumpAll();
+  };
+
+  const restart = () => {
+    setState(newGame(seedInput || Date.now().toString()));
+    bumpAll();
+  };
 
   const over = state.phase === "won" || state.phase === "lost";
 
@@ -55,9 +85,10 @@ export default function App() {
 
       <DiceTray
         state={state}
+        rollNonce={rollNonce}
         onToggle={(i) => setState(toggleHold(state, i))}
-        onReroll={() => setState(reroll(state))}
-        onEndTurn={() => setState(endTurn(state))}
+        onReroll={doReroll}
+        onEndTurn={doEndTurn}
       />
 
       <PlayerBar player={state.player} />
@@ -133,11 +164,13 @@ function CostView({ card }: { card: CardDef }) {
 
 function DiceTray({
   state,
+  rollNonce,
   onToggle,
   onReroll,
   onEndTurn,
 }: {
   state: GameState;
+  rollNonce: number[];
   onToggle: (i: number) => void;
   onReroll: () => void;
   onEndTurn: () => void;
@@ -152,8 +185,10 @@ function DiceTray({
           const ui = SYMBOL_UI[sym];
           const cls = ["die", d.held ? "held" : "", d.spent ? "spent" : ""].join(" ");
           return (
+            // The nonce in the key remounts the die when it rolls, replaying the
+            // tumble animation defined on `.die`.
             <button
-              key={i}
+              key={`${i}-${rollNonce[i] ?? 0}`}
               className={cls}
               style={{ borderColor: ui.color }}
               disabled={!canAct || d.spent}
