@@ -78,12 +78,16 @@ Same seed ⇒ identical run. Determinism is a hard invariant; there's a test for
   `spent` = already used to pay for a card this turn. Both reset at turn start.
 - **Status timing:** poison ticks + decays at the *start* of the afflicted's turn;
   silence / entangle / weaken decay at the *end* of the actor's turn. Entangle
-  locks the first N dice (held + spent) at roll time.
+  locks the first N dice at roll time — locked dice are flagged `entangled` (implies
+  held + spent) so the UI can render them distinctly from dice you spent yourself.
+- **Entangle can't softlock or run away.** It's capped via `STATUS_CAPS` in
+  `content.ts` (currently 2), and `rollAllForTurn` never locks your *last* die, so
+  you always keep usable dice. Add caps for other statuses there if they misbehave.
 - **Balance is a known open question.** With current numbers, the spider's
   Poisonous Eyeball relic adds +2 poison every player turn while poison only
-  decays by 1 → runaway poison, and the naive headless auto-player loses on every
-  seed. That's tuning, not a correctness bug. Adjust in `content.ts` (numbers
-  only — the rules in `game.ts` shouldn't need to change).
+  decays by 1 → runaway poison (still uncapped), and the naive headless auto-player
+  loses on every seed. That's tuning, not a correctness bug. Adjust in `content.ts`
+  (numbers only — the rules in `game.ts` shouldn't need to change).
 
 ## Git commit conventions
 

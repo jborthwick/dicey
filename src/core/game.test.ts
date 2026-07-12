@@ -11,7 +11,7 @@ import type { Die, GameState } from "./types";
 // (faces: wind light water earth wind light) so every element is reachable.
 function prismDie(symbol: "wind" | "light" | "water" | "earth"): Die {
   const face = { wind: 0, light: 1, water: 2, earth: 3 }[symbol];
-  return { defId: "prism", face, held: false, spent: false };
+  return { defId: "prism", face, held: false, spent: false, entangled: false };
 }
 
 describe("rng", () => {
@@ -140,6 +140,57 @@ describe("game — poison ramps via the relic", () => {
     // Poison was 2 at start; it should have ticked and been re-applied by relic.
     expect(s.player.hp).toBeLessThan(hp0);
     expect((s.player.statuses.poison ?? 0)).toBeGreaterThan(0);
+  });
+});
+
+describe("game — entangle is bounded and never softlocks", () => {
+  // Drive a realistic run (the flow that surfaced the bug: hold + reroll + end)
+  // and assert entangle stays capped and never locks the whole pool.
+  function driveAndInspect(seed: number) {
+    let s = newGame(seed);
+    const observations: { entangle: number; spent: number; entangled: number; dice: number }[] =
+      [];
+    let guard = 0;
+    while (s.phase === "playerTurn" && guard++ < 60) {
+      // Observe the *clean turn start*, before any of our own dice-spending.
+      observations.push({
+        entangle: s.player.statuses.entangle ?? 0,
+        spent: s.player.dice.filter((d) => d.spent).length,
+        entangled: s.player.dice.filter((d) => d.entangled).length,
+        dice: s.player.dice.length,
+      });
+      // Then play the whole turn (the flow from the bug report): hold, reroll,
+      // spend everything affordable, and end.
+      const holdable = s.player.dice.findIndex((d) => !d.spent);
+      if (holdable >= 0) s = toggleHold(s, holdable);
+      if (s.player.rollsRemaining > 0) s = reroll(s);
+      let inner = 0;
+      while (s.phase === "playerTurn" && inner++ < 10) {
+        const card = s.player.hand.find((c) => canPlayCard(s, c));
+        if (!card) break;
+        s = playCard(s, card);
+      }
+      s = endTurn(s);
+    }
+    return observations;
+  }
+
+  it("entangle never exceeds its cap (2) and never locks every die", () => {
+    for (const seed of [1, 2, 3, 7, 42, 99, 123]) {
+      for (const o of driveAndInspect(seed)) {
+        expect(o.entangle).toBeLessThanOrEqual(2);
+        expect(o.spent).toBeLessThan(o.dice); // at least one usable die remains
+      }
+    }
+  });
+
+  it("dice locked at turn start are flagged entangled (not just spent)", () => {
+    for (const seed of [2, 42, 99, 123]) {
+      for (const o of driveAndInspect(seed)) {
+        // Every die spent *at the start of a turn* is there because of entangle.
+        expect(o.entangled).toBe(o.spent);
+      }
+    }
   });
 });
 

@@ -64,6 +64,9 @@ export interface Die {
   held: boolean;
   /** Consumed by a card this turn; can't pay for another card until reset. */
   spent: boolean;
+  /** Locked by the Entangle status this turn (implies held + spent). Tracked
+   *  separately so the UI can show "webbed" distinctly from "I spent this". */
+  entangled: boolean;
 }
 
 // ---------------------------------------------------------------------------

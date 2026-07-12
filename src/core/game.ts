@@ -3,6 +3,7 @@ import {
   MAX_CARDS_PER_TURN,
   RANDOM_DEBUFFS,
   REROLLS_PER_TURN,
+  STATUS_CAPS,
   getCard,
   getDie,
   makePlayer,
@@ -53,7 +54,9 @@ function rollInt(draft: GameState, min: number, max: number): number {
 }
 
 function addStatus(actor: Actor, status: Status, stacks: number): void {
-  actor.statuses[status] = (actor.statuses[status] ?? 0) + stacks;
+  const next = (actor.statuses[status] ?? 0) + stacks;
+  const cap = STATUS_CAPS[status];
+  actor.statuses[status] = cap === undefined ? next : Math.min(next, cap);
 }
 
 function stacksOf(actor: Actor, status: Status): number {
@@ -126,20 +129,26 @@ function rollDie(draft: GameState, die: Die): void {
 
 /**
  * Fresh full roll for an actor at the start of its turn: unhold + unspend all
- * dice, roll every one, then lock the first `entangle` dice (held + spent) so
- * they can't be rerolled or spent this turn.
+ * dice, roll every one, then lock the first `entangle` dice so they can't be
+ * rerolled or spent this turn. Locked dice are flagged `entangled` (implies
+ * held + spent) so the UI can render them distinctly. We never lock the *last*
+ * die — the owner always keeps at least one usable die, so entangle can slow you
+ * but never fully softlock a turn.
  */
 function rollAllForTurn(draft: GameState, side: Side): void {
   const actor = actorOf(draft, side);
   for (const die of actor.dice) {
     die.held = false;
     die.spent = false;
+    die.entangled = false;
     rollDie(draft, die);
   }
-  const entangled = Math.min(stacksOf(actor, "entangle"), actor.dice.length);
-  for (let i = 0; i < entangled; i++) {
-    actor.dice[i]!.held = true;
-    actor.dice[i]!.spent = true;
+  const locked = Math.min(stacksOf(actor, "entangle"), actor.dice.length - 1);
+  for (let i = 0; i < locked; i++) {
+    const die = actor.dice[i]!;
+    die.held = true;
+    die.spent = true;
+    die.entangled = true;
   }
   actor.rollsRemaining = REROLLS_PER_TURN;
 }

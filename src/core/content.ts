@@ -1,4 +1,4 @@
-import type { Actor, CardDef, DieDef, Passive, Symbol } from "./types";
+import type { Actor, CardDef, DieDef, Passive, Status, Symbol } from "./types";
 
 /**
  * Concrete game content. This is the data layer — tweak numbers here to balance;
@@ -15,6 +15,17 @@ export const REROLLS_PER_TURN = 2;
 
 /** Safety cap on how many cards one actor may play in a single turn. */
 export const MAX_CARDS_PER_TURN = 6;
+
+/**
+ * Optional per-status stack caps, so a repeatedly-applied debuff can't run away.
+ * Entangle is capped so the spider's Web Shot can't stack until your whole pool
+ * is locked; combined with the "never lock your last die" guard in game.ts, you
+ * always keep usable dice. (Poison is intentionally uncapped for now — it's the
+ * spider's win condition; revisit during balance.)
+ */
+export const STATUS_CAPS: Partial<Record<Status, number>> = {
+  entangle: 2,
+};
 
 // ---------------------------------------------------------------------------
 // Dice
@@ -154,7 +165,13 @@ const POISONOUS_EYEBALL: Passive = {
 
 /** Turn a list of die-def ids into fresh, unrolled dice. */
 function makeDice(defIds: string[]): Actor["dice"] {
-  return defIds.map((defId) => ({ defId, face: 0, held: false, spent: false }));
+  return defIds.map((defId) => ({
+    defId,
+    face: 0,
+    held: false,
+    spent: false,
+    entangled: false,
+  }));
 }
 
 export function makePlayer(): Actor {

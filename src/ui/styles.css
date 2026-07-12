@@ -266,6 +266,24 @@ button:disabled {
   background: #2c2740;
   opacity: 0.55;
 }
+/* Entangled reads as a status: webbed violet tint, dimmed face, corner web. */
+.die.entangled {
+  background: #3a2a52;
+  border-color: #8a5fc0;
+  cursor: not-allowed;
+}
+.die.entangled .die-glyph {
+  opacity: 0.45;
+  filter: grayscale(0.4);
+}
+.die-web {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  font-size: 16px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
+}
 .tray-actions {
   display: flex;
   flex-direction: column;

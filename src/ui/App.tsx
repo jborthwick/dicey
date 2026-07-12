@@ -283,18 +283,38 @@ function DieView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const cls = ["die", die.held ? "held" : "", die.spent ? "spent" : ""].join(" ");
+  // Entangled implies held+spent, but it should read as a status, not as a die
+  // you spent — so it takes its own style and suppresses the held/spent looks.
+  const cls = [
+    "die",
+    die.entangled ? "entangled" : "",
+    !die.entangled && die.held ? "held" : "",
+    !die.entangled && die.spent ? "spent" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const title = die.entangled
+    ? `${ui.label} — Entangled (locked this turn)`
+    : `${ui.label}${die.held ? " (held)" : ""}${die.spent ? " (spent)" : ""}`;
   return (
     <button
       className={cls}
       style={
-        { borderColor: ui.color, "--roll-delay": `${delay}ms` } as CSSProperties
+        {
+          borderColor: die.entangled ? undefined : ui.color,
+          "--roll-delay": `${delay}ms`,
+        } as CSSProperties
       }
       disabled={!canAct || die.spent}
       onClick={() => onToggle(index)}
-      title={`${ui.label}${die.held ? " (held)" : ""}${die.spent ? " (spent)" : ""}`}
+      title={title}
     >
       <span className="die-glyph">{SYMBOL_UI[shown].glyph}</span>
+      {die.entangled && (
+        <span className="die-web" aria-hidden>
+          🕸️
+        </span>
+      )}
     </button>
   );
 }
