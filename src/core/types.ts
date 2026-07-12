@@ -144,6 +144,26 @@ export interface Actor {
   passives: Passive[];
 }
 
+/**
+ * Static, serializable starting kit for a player or enemy — the shape a
+ * content editor reads/writes. `makeEnemy`/`makePlayer` in
+ * `content/enemies.ts` / `content/player.ts` hydrate this into a live
+ * `Actor` (fresh `statuses`, rolled `dice`, resolved `passives`). Kept
+ * separate from `Actor` because `Actor` carries per-run state (current hp,
+ * dice faces, statuses) that has no business in a content file.
+ */
+export interface ActorDef {
+  id: string;
+  name: string;
+  hp: number;
+  /** Die-def ids (from DICE) rolled fresh into `Die[]` each turn. */
+  diceIds: string[];
+  /** Card ids (from CARDS) this actor can play. */
+  handIds: string[];
+  /** Passive ids (from PASSIVES), always-on relics. */
+  passiveIds: string[];
+}
+
 // ---------------------------------------------------------------------------
 // Game state
 // ---------------------------------------------------------------------------

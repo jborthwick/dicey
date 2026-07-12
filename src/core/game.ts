@@ -1,5 +1,5 @@
 import {
-  CARD_BY_ID,
+  CARDS,
   MAX_CARDS_PER_TURN,
   RANDOM_DEBUFFS,
   REWARD_CARD_IDS,
@@ -487,7 +487,7 @@ export function canPlayCard(state: GameState, cardId: string): boolean {
   if (state.phase !== "playerTurn") return false;
   if (stacksOf(state.player, "silence") > 0) return false;
   if (!state.player.hand.includes(cardId)) return false;
-  const card = CARD_BY_ID.get(cardId);
+  const card = CARDS[cardId];
   if (!card) return false;
   return matchRequirement(state.player.dice, card.requirement) !== null;
 }

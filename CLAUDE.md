@@ -62,7 +62,7 @@ Same seed ⇒ identical run. Determinism is a hard invariant; there's a test for
 | Seeded PRNG (mulberry32, state-threaded) | `src/core/rng.ts` |
 | Dice symbol resolution + requirement matching | `src/core/dice.ts` |
 | The rules: `newGame`, `roll`, `toggleHold`, `reroll`, `playCard`, `endTurn` | `src/core/game.ts` |
-| Content: dice, cards, enemies, passives, tuning | `src/core/content.ts` |
+| Content: dice, cards, enemies, passives, tuning | `src/core/content/` (see below) |
 | React shell | `src/ui/` |
 | Enemy sprite visuals | `src/ui/visuals/`, `public/assets/enemies/` |
 
@@ -88,8 +88,20 @@ Same seed ⇒ identical run. Determinism is a hard invariant; there's a test for
   locks the first N dice at roll time — locked dice are flagged `entangled` (implies
   held + spent) so the UI can render them distinctly from dice you spent yourself.
 - **Entangle can't softlock or run away.** It's capped via `STATUS_CAPS` in
-  `content.ts` (currently 2), and `rollAllForTurn` never locks your *last* die, so
-  you always keep usable dice. Add caps for other statuses there if they misbehave.
+  `content/config.ts` (currently 2), and `rollAllForTurn` never locks your *last*
+  die, so you always keep usable dice. Add caps for other statuses there if they
+  misbehave.
+- **Content is static data + a hydrator, split by domain.** `src/core/content/`:
+  `config.ts` (tuning constants), `dice.ts`/`cards.ts`/`passives.ts`/`enemies.ts`
+  (each a flat `Record<id, Def>` — no functions, fully serializable), `player.ts`
+  (`PLAYER_DEF`), and `hydrate.ts` (`hydrateActor(def: ActorDef): Actor` — rolls
+  fresh dice, resolves passive ids, used by both `makeEnemy`/`makePlayer`).
+  `ActorDef` (types.ts) is the *static* starting-kit shape (id/name/hp/diceIds/
+  handIds/passiveIds); `Actor` (also types.ts) is the *live* per-run shape
+  hydrate produces. This split exists specifically so a future dev tool can read
+  and regenerate any one content file wholesale — don't reintroduce a
+  switch-statement factory or inline the def+hydration back together.
+  `content/index.ts` is a barrel; `"./content"` resolves there automatically.
 - **Run progression.** `newRun(seed)` walks `STARTER_ENEMY_IDS` in order. On kill,
   phase becomes `draft` with two offers from `REWARD_CARD_IDS` (excluding cards
   already owned) plus the defeated enemy's relic pending. `pickDraftCard` adds the
@@ -99,7 +111,7 @@ Same seed ⇒ identical run. Determinism is a hard invariant; there's a test for
 - **Balance is a known open question.** The spider's Poisonous Eyeball still adds
   +2 poison every player turn while poison only decays by 1 → runaway poison when
   fighting it. Early enemies are tuned softer for onboarding. Adjust numbers in
-  `content.ts` only — the rules in `game.ts` shouldn't need to change.
+  `content/` only — the rules in `game.ts` shouldn't need to change.
 - **Asset provenance is tracked, not assumed.** `public/assets/enemies/README.md`
   is the source-of-truth ledger (pack, license, exact source files) for every
   committed sprite; `src/ui/visuals/enemies.ts`'s `source` field is the
