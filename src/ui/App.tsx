@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   canPlayCard,
+  canReroll,
   endTurnTimeline,
   getCard,
-  newGame,
+  newRun,
+  pickDraftCard,
   playCard,
   reroll,
+  STARTER_ENEMY_IDS,
   symbolOf,
   toggleHold,
   matchRequirement,
@@ -14,6 +17,7 @@ import {
   type CardDef,
   type Die,
   type GameState,
+  type Passive,
   type Symbol,
   type TurnBeat,
 } from "../core/index";
@@ -23,8 +27,9 @@ import { ELEMENT_COLOR, STATUS_UI, SYMBOL_UI } from "./symbols";
 const SHUFFLE_MS = 280; // how long a rolling die flickers before settling
 const FLICKER_MS = 50; // interval between flicker frames
 const STAGGER_MS = 45; // per-die delay so a multi-die roll cascades
-const RESOLVE_DELAY = 1000; // pause between beats of the spider's turn
-const PROJECTILE_MS = 440; // flight time of a played-card projectile
+const RESOLVE_DELAY = 520; // pause between beats of the spider's turn
+const PROJECTILE_MS = 240; // flight time of a played-card projectile
+const FLOATER_MS = 650; // lifetime of a floating damage number
 
 /** Which side's HP bar a card's effect is aimed at, from the actor's frame:
  *  offensive/debuff cards fly at the opponent, self-buffs at the caster. */
@@ -122,7 +127,7 @@ function useRollShuffle(realSym: Symbol, delay: number): Symbol {
  */
 export default function App() {
   const [seedInput, setSeedInput] = useState("dicey-1");
-  const [state, setState] = useState<GameState>(() => newGame("dicey-1"));
+  const [state, setState] = useState<GameState>(() => newRun("dicey-1"));
 
   // A per-die counter, bumped whenever that die actually rolls. It feeds the
   // die's React `key`, so a rolled die remounts and replays its CSS tumble while
@@ -208,7 +213,7 @@ export default function App() {
     const id = ++floaterId.current;
     const jitter = (Math.random() - 0.5) * 70;
     setFloaters((fs) => [...fs, { id, text: `-${amount}`, variant, x: c.x + jitter, y: c.y }]);
-    setTimeout(() => setFloaters((fs) => fs.filter((f) => f.id !== id)), 950);
+    setTimeout(() => setFloaters((fs) => fs.filter((f) => f.id !== id)), FLOATER_MS);
   };
 
   // When a projectile lands: remove it, flash the target bar, pop the number.
@@ -293,11 +298,23 @@ export default function App() {
   const restart = () => {
     setFrames([]);
     setFrameIdx(0);
-    setState(newGame(seedInput || Date.now().toString()));
+    setState(newRun(seedInput || Date.now().toString()));
     bumpAll();
   };
 
-  const over = state.phase === "won" || state.phase === "lost";
+  const pickCard = (id: string) => {
+    setFrames([]);
+    setFrameIdx(0);
+    setState(pickDraftCard(state, id));
+    bumpAll();
+  };
+
+  const drafting = state.phase === "draft";
+  const over =
+    state.phase === "won" || state.phase === "runWon" || state.phase === "lost";
+  const fightLabel = state.run.enabled
+    ? `Fight ${state.run.fightIndex + 1}/${STARTER_ENEMY_IDS.length}`
+    : null;
 
   return (
     <div className="app">
@@ -309,6 +326,7 @@ export default function App() {
             <input value={seedInput} onChange={(e) => setSeedInput(e.target.value)} />
           </label>
           <button onClick={restart}>New run</button>
+          {fightLabel && <span className="turn">{fightLabel}</span>}
           <span className="turn">Turn {state.turn}</span>
         </div>
       </header>
@@ -323,12 +341,24 @@ export default function App() {
 
       {over && (
         <div className={`banner ${state.phase}`}>
-          {state.phase === "won" ? "Victory!" : "Defeated…"}{" "}
+          {state.phase === "runWon"
+            ? "Run complete!"
+            : state.phase === "won"
+              ? "Victory!"
+              : "Defeated…"}{" "}
           <button onClick={restart}>Play again</button>
         </div>
       )}
 
-      <CardGrid state={state} onPlay={playPlayerCard} />
+      {drafting && state.run.draftOffers && (
+        <DraftOverlay
+          offers={state.run.draftOffers}
+          relic={state.run.pendingRelic}
+          onPick={pickCard}
+        />
+      )}
+
+      <CardGrid state={state} onPlay={playPlayerCard} disabled={drafting || over} />
 
       <DiceTray
         state={state}
@@ -340,7 +370,7 @@ export default function App() {
         onSkip={skipResolve}
       />
 
-      <PlayerBar player={state.player} hit={hit.player} />
+      <PlayerBar player={state.player} hit={hit.player} passives={state.player.passives} />
 
       <Log lines={state.log} />
 
@@ -546,18 +576,62 @@ function EnemyDie({ die, delay }: { die: Die; delay: number }) {
   );
 }
 
+function DraftOverlay({
+  offers,
+  relic,
+  onPick,
+}: {
+  offers: [string, string];
+  relic: Passive | null;
+  onPick: (id: string) => void;
+}) {
+  const cards = offers.map(getCard);
+  const uniqueCards =
+    offers[0] === offers[1] ? [cards[0]!] : [cards[0]!, cards[1]!];
+  return (
+    <div className="draft-overlay">
+      <div className="draft-panel">
+        <h2>Choose a card</h2>
+        {relic && (
+          <p className="draft-relic">
+            Relic gained: <strong>{relic.name}</strong>
+          </p>
+        )}
+        <div className="draft-cards">
+          {uniqueCards.map((card) => (
+            <button
+              key={card.id}
+              className="card draft-card"
+              style={{ background: ELEMENT_COLOR[card.element] }}
+              onClick={() => onPick(card.id)}
+            >
+              <div className="card-name">{card.name}</div>
+              <div className="card-cost">
+                <CostView card={card} />
+              </div>
+              <div className="card-text">{card.text}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CardGrid({
   state,
   onPlay,
+  disabled,
 }: {
   state: GameState;
   onPlay: (id: string, sourceEl: Element) => void;
+  disabled?: boolean;
 }) {
   const cards = useMemo(() => state.player.hand.map(getCard), [state.player.hand]);
   return (
     <section className="cards">
       {cards.map((card) => {
-        const playable = canPlayCard(state, card.id);
+        const playable = !disabled && canPlayCard(state, card.id);
         return (
           <button
             key={card.id}
@@ -643,7 +717,7 @@ function DiceTray({
         ) : (
           <>
             <button
-              disabled={!canAct || state.player.rollsRemaining <= 0}
+              disabled={!canAct || !canReroll(state)}
               onClick={onReroll}
             >
               Reroll ({state.player.rollsRemaining})
@@ -718,7 +792,15 @@ function DieView({
   );
 }
 
-function PlayerBar({ player, hit }: { player: Actor; hit: { n: number; v: string } }) {
+function PlayerBar({
+  player,
+  hit,
+  passives,
+}: {
+  player: Actor;
+  hit: { n: number; v: string };
+  passives: Passive[];
+}) {
   return (
     <section className="player">
       <div className="player-name">
@@ -726,6 +808,15 @@ function PlayerBar({ player, hit }: { player: Actor; hit: { n: number; v: string
         <StatusRow statuses={player.statuses} />
       </div>
       <HpBar cur={player.hp} max={player.maxHp} hit={hit} />
+      {passives.length > 0 && (
+        <div className="player-relics">
+          {passives.map((p) => (
+            <div key={p.id} className="passive" title={p.name}>
+              ✦ {p.name}
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

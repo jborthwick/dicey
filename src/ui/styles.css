@@ -188,14 +188,14 @@ button:disabled {
 }
 /* Impact pulse when a projectile lands on a bar. */
 .hpbar.bumped {
-  animation: hp-shake 320ms ease-out;
+  animation: hp-shake 220ms ease-out;
 }
 .hpbar-hit {
   position: absolute;
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  animation: hit-flash 420ms ease-out forwards;
+  animation: hit-flash 260ms ease-out forwards;
 }
 .hpbar-hit.attack {
   background: radial-gradient(ellipse at center, rgba(255, 90, 80, 0.75), transparent 72%);
@@ -275,7 +275,7 @@ button:disabled {
     0 0 3px #000;
   pointer-events: none;
   white-space: nowrap;
-  animation: floater-rise 950ms cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+  animation: floater-rise 650ms cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
 }
 .floater.debuff {
   color: #d3a5f5;
@@ -495,11 +495,59 @@ button:disabled {
   font-weight: 700;
   font-size: 18px;
 }
+.banner.runWon {
+  background: #1e5c39;
+}
 .banner.won {
   background: #1e5c39;
 }
 .banner.lost {
   background: #5c1e2a;
+}
+
+/* ---- draft overlay ---- */
+.draft-overlay {
+  position: fixed;
+  inset: 0;
+  background: #000000aa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+.draft-panel {
+  background: var(--panel);
+  border-radius: 14px;
+  padding: 16px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+}
+.draft-panel h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+.draft-relic {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+.draft-cards {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.draft-card {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+.player-relics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
 }
 
 /* ---- log ---- */
