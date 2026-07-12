@@ -39,7 +39,11 @@ body {
   overflow: hidden;
 }
 
-/* Enemy + hand + log scroll; dock (HP / dice) stays pinned below. */
+/* Enemy + hand + log scroll; dock (HP / dice) stays pinned below. The enemy's
+   dice/hand rows only render while it's acting, so this area can genuinely
+   grow taller than the viewport for a beat or two — scrolling stays enabled
+   so the dock never gets pushed off-screen, but the scrollbar chrome itself
+   is hidden so it doesn't pop a visible track in and out as that happens. */
 .fight-scroll {
   flex: 1 1 auto;
   min-height: 0;
@@ -50,6 +54,11 @@ body {
   gap: 12px;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.fight-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .dock {
