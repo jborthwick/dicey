@@ -3,6 +3,7 @@ export * from "./types";
 export * from "./rng";
 export * from "./dice";
 export * from "./game";
+export * from "./persist";
 export {
   CARDS,
   DICE,
