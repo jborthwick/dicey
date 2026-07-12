@@ -52,10 +52,20 @@ interface Projectile {
   color: string;
   variant: "attack" | "buff" | "debuff";
   side: "player" | "enemy"; // whose HP bar it hits
+  amount: number; // HP lost by the target this play (0 = no damage number)
   fromX: number;
   fromY: number;
   toX: number;
   toY: number;
+}
+
+/** A floating "-N" that rises off a bar on impact. */
+interface Floater {
+  id: number;
+  text: string;
+  variant: "attack" | "buff" | "debuff";
+  x: number;
+  y: number;
 }
 
 /** Per-side impact pulse: `n` retriggers the flash, `v` colors it. */
@@ -146,16 +156,19 @@ export default function App() {
   // Flying-card projectiles + per-side impact flashes. Emphasize the direction
   // of each play: the played card lunges at the HP bar it affects.
   const [projectiles, setProjectiles] = useState<Projectile[]>([]);
+  const [floaters, setFloaters] = useState<Floater[]>([]);
   const [hit, setHit] = useState<HitState>({
     player: { n: 0, v: "attack" },
     enemy: { n: 0, v: "attack" },
   });
   const projectileId = useRef(0);
+  const floaterId = useRef(0);
 
   const spawnProjectile = (
     card: CardDef,
     actorSide: "player" | "enemy",
     sourceEl: Element | null,
+    amount: number,
   ) => {
     if (REDUCED_MOTION || !sourceEl) return;
     const side = targetSideOf(card, actorSide);
@@ -174,6 +187,7 @@ export default function App() {
         color: ELEMENT_COLOR[card.element] ?? "#666",
         variant: cardVariant(card),
         side,
+        amount,
         fromX: from.x,
         fromY: from.y,
         toX: to.x,
@@ -182,25 +196,50 @@ export default function App() {
     ]);
   };
 
-  // When a projectile lands: remove it and flash the target bar.
+  // Pop a floating "-N" off a bar, with a little horizontal jitter so stacked
+  // hits don't perfectly overlap. Self-removes.
+  const spawnFloater = (side: "player" | "enemy", amount: number, variant: Floater["variant"]) => {
+    if (REDUCED_MOTION || amount <= 0) return;
+    const barEl = document.querySelector(
+      side === "enemy" ? ".enemy .hpbar" : ".player .hpbar",
+    );
+    if (!barEl) return;
+    const c = centerOf(barEl);
+    const id = ++floaterId.current;
+    const jitter = (Math.random() - 0.5) * 70;
+    setFloaters((fs) => [...fs, { id, text: `-${amount}`, variant, x: c.x + jitter, y: c.y }]);
+    setTimeout(() => setFloaters((fs) => fs.filter((f) => f.id !== id)), 950);
+  };
+
+  // When a projectile lands: remove it, flash the target bar, pop the number.
   const onProjectileArrive = (p: Projectile) => {
     setProjectiles((ps) => ps.filter((x) => x.id !== p.id));
     setHit((h) => ({ ...h, [p.side]: { n: h[p.side].n + 1, v: p.variant } }));
+    spawnFloater(p.side, p.amount, p.variant);
   };
 
-  // Spider plays are discovered per beat; fire a projectile from its card.
+  // Spider plays are discovered per beat; fire a projectile from its card and
+  // read the HP it cost off the beat diff.
   useEffect(() => {
-    const action = frames[frameIdx]?.action;
-    if (action?.kind !== "play") return;
+    const beat = frames[frameIdx];
+    if (beat?.action.kind !== "play") return;
+    const card = getCard(beat.action.cardId);
+    const side = targetSideOf(card, "enemy");
+    const prev = frames[frameIdx - 1]?.state;
+    const amount = prev ? Math.max(0, prev[side].hp - beat.state[side].hp) : 0;
     // The playing card just got its `.playing` class in this render.
     const sourceEl = document.querySelector(".enemy-card.playing");
-    spawnProjectile(getCard(action.cardId), "enemy", sourceEl);
+    spawnProjectile(card, "enemy", sourceEl, amount);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frameIdx]);
 
   const playPlayerCard = (id: string, sourceEl: Element) => {
-    spawnProjectile(getCard(id), "player", sourceEl);
-    setState(playCard(state, id));
+    const card = getCard(id);
+    const next = playCard(state, id);
+    const side = targetSideOf(card, "player");
+    const amount = Math.max(0, state[side].hp - next[side].hp);
+    spawnProjectile(card, "player", sourceEl, amount);
+    setState(next);
   };
 
   // Reveal `next`, animating dice that actually changed between the two frames.
@@ -305,23 +344,38 @@ export default function App() {
 
       <Log lines={state.log} />
 
-      <Projectiles projectiles={projectiles} onArrive={onProjectileArrive} />
+      <Projectiles
+        projectiles={projectiles}
+        floaters={floaters}
+        onArrive={onProjectileArrive}
+      />
     </div>
   );
 }
 
-/** Fixed overlay that flies each played card toward its target's HP bar. */
+/** Fixed overlay: flying-card projectiles and the floating damage numbers. */
 function Projectiles({
   projectiles,
+  floaters,
   onArrive,
 }: {
   projectiles: Projectile[];
+  floaters: Floater[];
   onArrive: (p: Projectile) => void;
 }) {
   return (
     <div className="projectiles-layer">
       {projectiles.map((p) => (
         <FlyingCard key={p.id} p={p} onArrive={onArrive} />
+      ))}
+      {floaters.map((f) => (
+        <div
+          key={f.id}
+          className={`floater ${f.variant}`}
+          style={{ left: f.x, top: f.y }}
+        >
+          {f.text}
+        </div>
       ))}
     </div>
   );

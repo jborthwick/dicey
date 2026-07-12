@@ -264,6 +264,40 @@ button:disabled {
   box-shadow: 0 0 16px -2px #5fd6a0, 0 3px 12px rgba(0, 0, 0, 0.55);
 }
 
+/* ---- floating damage numbers ---- */
+.floater {
+  position: fixed;
+  font-size: 26px;
+  font-weight: 800;
+  color: #ff6b5e;
+  text-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.75),
+    0 0 3px #000;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: floater-rise 950ms cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+}
+.floater.debuff {
+  color: #d3a5f5;
+}
+.floater.buff {
+  color: #6fe0a8;
+}
+@keyframes floater-rise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -25%) scale(0.6);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -70%) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -175%) scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hpbar.bumped,
   .hpbar-hit {
