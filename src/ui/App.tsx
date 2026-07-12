@@ -22,6 +22,7 @@ import {
   type TurnBeat,
 } from "../core/index";
 import { EnemySprite } from "./EnemySprite";
+import { loadSavedGame, saveGame } from "./storage";
 import { ELEMENT_COLOR, STATUS_UI, SYMBOL_UI } from "./symbols";
 
 /** Cosmetic roll tuning (UI-only — never touches core RNG or state). */
@@ -127,8 +128,15 @@ function useRollShuffle(realSym: Symbol, delay: number): Symbol {
  * it belongs in `src/core`.
  */
 export default function App() {
-  const [seedInput, setSeedInput] = useState("dicey-1");
-  const [state, setState] = useState<GameState>(() => newRun("dicey-1"));
+  // Hydrate once from localStorage (or start a default run). Cached in state so
+  // StrictMode double-mount doesn't re-read / re-seed.
+  const [boot] = useState(() => {
+    const saved = loadSavedGame();
+    if (saved) return { state: saved, seedInput: String(saved.seed) };
+    return { state: newRun("dicey-1"), seedInput: "dicey-1" };
+  });
+  const [seedInput, setSeedInput] = useState(boot.seedInput);
+  const [state, setState] = useState<GameState>(boot.state);
 
   // A per-die counter, bumped whenever that die actually rolls. It feeds the
   // die's React `key`, so a rolled die remounts and replays its CSS tumble while
@@ -152,6 +160,14 @@ export default function App() {
   const [frames, setFrames] = useState<TurnBeat[]>([]);
   const [frameIdx, setFrameIdx] = useState(0);
   const resolving = frameIdx < frames.length - 1;
+
+  // Durable save: skip mid-enemy-turn frames so a refresh never lands in a
+  // stranded enemyTurn. Closing mid-resolve reloads the pre-End-Turn board;
+  // same seed ⇒ End Turn again yields the same outcome.
+  useEffect(() => {
+    if (resolving) return;
+    saveGame(state);
+  }, [state, resolving]);
 
   // If the current beat is the spider playing a card, name it so the UI can
   // light that card up.
