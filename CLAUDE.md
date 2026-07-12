@@ -64,6 +64,7 @@ Same seed ⇒ identical run. Determinism is a hard invariant; there's a test for
 | The rules: `newGame`, `roll`, `toggleHold`, `reroll`, `playCard`, `endTurn` | `src/core/game.ts` |
 | Content: dice, cards, enemies, passives, tuning | `src/core/content.ts` |
 | React shell | `src/ui/` |
+| Enemy sprite visuals | `src/ui/visuals/`, `public/assets/enemies/` |
 
 ## Model notes (so you don't relearn them)
 

@@ -21,6 +21,7 @@ import {
   type Symbol,
   type TurnBeat,
 } from "../core/index";
+import { EnemySprite } from "./EnemySprite";
 import { ELEMENT_COLOR, STATUS_UI, SYMBOL_UI } from "./symbols";
 
 /** Cosmetic roll tuning (UI-only — never touches core RNG or state). */
@@ -505,6 +506,14 @@ function EnemyPanel({
         {enemy.name}
         {acting && <span className="acting-tag">acting…</span>}
         <StatusRow statuses={enemy.statuses} />
+      </div>
+      <div className="enemy-stage">
+        <EnemySprite
+          enemyId={enemy.id}
+          hp={enemy.hp}
+          hitN={hit.n}
+          playingCardId={playingCardId}
+        />
       </div>
       <HpBar cur={enemy.hp} max={enemy.maxHp} hit={hit} />
       {enemy.passives.map((p) => (
