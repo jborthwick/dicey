@@ -357,6 +357,10 @@ export default function App() {
     ? `Fight ${state.run.fightIndex + 1}/${STARTER_ENEMY_IDS.length}`
     : null;
 
+  const canAct = state.phase === "playerTurn";
+  const canPlayAny = canAct && state.player.hand.some((id) => canPlayCard(state, id));
+  const endTurnNudge = canAct && !canPlayAny && !canReroll(state) && !resolving;
+
   return (
     <div className="app">
       <header className="topbar">
@@ -400,16 +404,22 @@ export default function App() {
 
       {/* Pinned dock: HP + dice/actions stay reachable on short phones. */}
       <div className="dock">
-        <PlayerBar player={state.player} hit={hit.player} passives={state.player.passives} />
+        <button
+          className={`end-turn end-turn-pill${endTurnNudge ? " nudge" : ""}`}
+          disabled={!canAct || resolving}
+          onClick={doEndTurn}
+        >
+          End Turn →
+        </button>
         <DiceTray
           state={state}
           rollNonce={rollNonce}
           resolving={resolving}
           onToggle={(i) => setState(toggleHold(state, i))}
           onReroll={doReroll}
-          onEndTurn={doEndTurn}
           onSkip={skipResolve}
         />
+        <PlayerBar player={state.player} hit={hit.player} passives={state.player.passives} />
       </div>
 
       {/* position:fixed overlays live outside .fight-scroll: nesting a fixed
@@ -763,7 +773,6 @@ function DiceTray({
   resolving,
   onToggle,
   onReroll,
-  onEndTurn,
   onSkip,
 }: {
   state: GameState;
@@ -771,13 +780,10 @@ function DiceTray({
   resolving: boolean;
   onToggle: (i: number) => void;
   onReroll: () => void;
-  onEndTurn: () => void;
   onSkip: () => void;
 }) {
   const dice = state.player.dice;
   const canAct = state.phase === "playerTurn";
-  const canPlayAny = canAct && state.player.hand.some((id) => canPlayCard(state, id));
-  const endTurnNudge = canAct && !canPlayAny && !canReroll(state);
   // Stagger only the dice that can actually roll, so a partial reroll of one or
   // two dice stays snappy instead of waiting out phantom slots.
   let rollOrder = 0;
@@ -807,21 +813,15 @@ function DiceTray({
             Skip ⏭
           </button>
         ) : (
-          <>
-            <button
-              disabled={!canAct || !canReroll(state)}
-              onClick={onReroll}
-            >
-              Reroll ({state.player.rollsRemaining})
-            </button>
-            <button
-              className={`end-turn${endTurnNudge ? " nudge" : ""}`}
-              disabled={!canAct}
-              onClick={onEndTurn}
-            >
-              End Turn →
-            </button>
-          </>
+          <button
+            className="reroll"
+            disabled={!canAct || !canReroll(state)}
+            onClick={onReroll}
+            title={`Reroll (${state.player.rollsRemaining} left)`}
+          >
+            <span className="reroll-glyph">⟳</span>
+            <span className="reroll-count">{state.player.rollsRemaining}</span>
+          </button>
         )}
       </div>
     </section>
