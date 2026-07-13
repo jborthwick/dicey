@@ -8,7 +8,6 @@ import {
   pickDraftCard,
   playCard,
   reroll,
-  STARTER_ENEMY_IDS,
   symbolOf,
   toggleHold,
   matchRequirement,
@@ -351,11 +350,10 @@ export default function App() {
   };
 
   const drafting = state.phase === "draft";
-  const over =
-    state.phase === "won" || state.phase === "runWon" || state.phase === "lost";
-  const fightLabel = state.run.enabled
-    ? `Fight ${state.run.fightIndex + 1}/${STARTER_ENEMY_IDS.length}`
-    : null;
+  const over = state.phase === "won" || state.phase === "lost";
+  // No "/N" denominator — runs are endless past the fixed opener, so there's
+  // no fixed total to show once fightIndex >= STARTER_ENEMY_IDS.length.
+  const fightLabel = state.run.enabled ? `Fight ${state.run.fightIndex + 1}` : null;
 
   const canAct = state.phase === "playerTurn";
   const canPlayAny = canAct && state.player.hand.some((id) => canPlayCard(state, id));
@@ -388,11 +386,7 @@ export default function App() {
 
         {over && (
           <div className={`banner ${state.phase}`}>
-            {state.phase === "runWon"
-              ? "Run complete!"
-              : state.phase === "won"
-                ? "Victory!"
-                : "Defeated…"}{" "}
+            {state.phase === "won" ? "Victory!" : "Defeated…"}{" "}
             <button onClick={restart}>Play again</button>
           </div>
         )}

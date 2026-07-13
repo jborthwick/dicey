@@ -831,9 +831,6 @@ button:disabled {
   font-weight: 700;
   font-size: 18px;
 }
-.banner.runWon {
-  background: #1e5c39;
-}
 .banner.won {
   background: #1e5c39;
 }

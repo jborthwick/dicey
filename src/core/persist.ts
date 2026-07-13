@@ -28,7 +28,6 @@ export const STABLE_PHASES: readonly Phase[] = [
   "playerTurn",
   "draft",
   "won",
-  "runWon",
   "lost",
 ] as const;
 
@@ -101,7 +100,6 @@ function isPhase(v: unknown): v is Phase {
     v === "enemyTurn" ||
     v === "draft" ||
     v === "won" ||
-    v === "runWon" ||
     v === "lost"
   );
 }

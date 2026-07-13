@@ -1,5 +1,6 @@
 import {
   CARDS,
+  ENDLESS_ENEMY_IDS,
   MAX_CARDS_PER_TURN,
   RANDOM_DEBUFFS,
   REWARD_CARD_IDS,
@@ -194,12 +195,7 @@ function startTurn(draft: GameState, side: Side): void {
     }
   }
 
-  if (
-    draft.phase === "won" ||
-    draft.phase === "runWon" ||
-    draft.phase === "lost" ||
-    draft.phase === "draft"
-  ) {
+  if (draft.phase === "won" || draft.phase === "lost" || draft.phase === "draft") {
     return;
   }
   rollAllForTurn(draft, side);
@@ -213,12 +209,17 @@ function endOfTurnDecay(actor: Actor): void {
   }
 }
 
-/** Pick two distinct reward cards the player doesn't already own. */
+/**
+ * Pick two reward-card offers. Prefers cards the player doesn't already own;
+ * once every reward card has been collected (a long endless run will get
+ * there — there are only REWARD_CARD_IDS.length of them), falls back to
+ * offering from the full pool so a draft can never come up empty. Picking an
+ * already-owned card is a harmless no-op in `pickDraftCard` (the relic and
+ * fight advance still happen) rather than a crash.
+ */
 function rollDraftOffers(draft: GameState): [string, string] {
-  const pool = REWARD_CARD_IDS.filter((id) => !draft.player.hand.includes(id));
-  if (pool.length === 0) {
-    throw new Error("No cards left in the reward pool");
-  }
+  const unowned = REWARD_CARD_IDS.filter((id) => !draft.player.hand.includes(id));
+  const pool = unowned.length > 0 ? unowned : REWARD_CARD_IDS;
   if (pool.length === 1) {
     return [pool[0]!, pool[0]!];
   }
@@ -377,7 +378,7 @@ export function newRun(seed: number | string): GameState {
     log: [],
   };
   const draft = clone(base);
-  log(draft, `Run start — fight 1/${STARTER_ENEMY_IDS.length}.`);
+  log(draft, "Run start — fight 1.");
   log(draft, `Encounter: ${draft.player.name} vs ${draft.enemy.name}.`);
   startTurn(draft, "player");
   return draft;
@@ -394,8 +395,12 @@ export function pickDraftCard(state: GameState, cardId: string): GameState {
   }
 
   const draft = clone(state);
-  draft.player.hand.push(cardId);
-  log(draft, `Added ${getCard(cardId).name} to your deck.`);
+  if (!draft.player.hand.includes(cardId)) {
+    draft.player.hand.push(cardId);
+    log(draft, `Added ${getCard(cardId).name} to your deck.`);
+  } else {
+    log(draft, `Already own ${getCard(cardId).name} — no new copy added.`);
+  }
 
   const relic = draft.run.pendingRelic;
   if (relic && !draft.player.passives.some((p) => p.id === relic.id)) {
@@ -407,23 +412,28 @@ export function pickDraftCard(state: GameState, cardId: string): GameState {
   draft.run.pendingRelic = null;
   draft.run.fightIndex++;
 
-  if (draft.run.fightIndex >= STARTER_ENEMY_IDS.length) {
-    draft.phase = "runWon";
-    log(draft, "Run complete!");
-    return draft;
-  }
+  // Runs never end on their own — the fixed opener (STARTER_ENEMY_IDS) plays
+  // out in order, then every fight after that is a random (seeded) pick from
+  // ENDLESS_ENEMY_IDS. The only way a run ends is the player dying.
+  const enemyId =
+    draft.run.fightIndex < STARTER_ENEMY_IDS.length
+      ? STARTER_ENEMY_IDS[draft.run.fightIndex]!
+      : pickNextEndlessEnemy(draft);
 
   draft.player.statuses = {};
-  const enemyId = STARTER_ENEMY_IDS[draft.run.fightIndex]!;
   draft.enemy = makeEnemy(enemyId);
   draft.turn = 1;
   draft.phase = "playerTurn";
-  log(
-    draft,
-    `Fight ${draft.run.fightIndex + 1}/${STARTER_ENEMY_IDS.length}: vs ${draft.enemy.name}.`,
-  );
+  log(draft, `Fight ${draft.run.fightIndex + 1}: vs ${draft.enemy.name}.`);
   startTurn(draft, "player");
   return draft;
+}
+
+/** Seeded pick of the next endless-phase enemy. Mutates draft.rng. */
+function pickNextEndlessEnemy(draft: GameState): string {
+  const [enemyId, nextRng] = pick(draft.rng, ENDLESS_ENEMY_IDS);
+  draft.rng = nextRng;
+  return enemyId;
 }
 
 /**

@@ -102,12 +102,23 @@ Same seed ⇒ identical run. Determinism is a hard invariant; there's a test for
   and regenerate any one content file wholesale — don't reintroduce a
   switch-statement factory or inline the def+hydration back together.
   `content/index.ts` is a barrel; `"./content"` resolves there automatically.
-- **Run progression.** `newRun(seed)` walks `STARTER_ENEMY_IDS` in order. On kill,
-  phase becomes `draft` with two offers from `REWARD_CARD_IDS` (excluding cards
-  already owned) plus the defeated enemy's relic pending. `pickDraftCard` adds the
-  card + relic, clears combat statuses, and starts the next fight — or `runWon` after
-  the last enemy. `newGame(seed, enemyId?)` remains for single-encounter tests
-  (`run.enabled = false`, phase `won` on kill).
+- **Run progression is endless.** `newRun(seed)` plays `STARTER_ENEMY_IDS` in
+  fixed order first (the opener), then — once `fightIndex >= STARTER_ENEMY_IDS.
+  length` — every next enemy is a seeded random pick from `ENDLESS_ENEMY_IDS`
+  (every enemy with a real sprite; repeats allowed, that's the "cycle"). A run
+  never wins on its own; the only terminal state is `lost`. There is no
+  `runWon` phase — it was removed as genuinely unreachable when this shipped,
+  don't reintroduce a fixed run length without also reintroducing that phase
+  everywhere it was wired (types.ts, persist.ts, App.tsx, styles.css all
+  referenced it once). On kill, phase becomes `draft` with two offers from
+  `REWARD_CARD_IDS`, preferring cards not yet owned but falling back to the
+  full pool once everything's collected (`rollDraftOffers` in game.ts) — a
+  long run *will* exhaust the ~10-card pool, and picking an already-owned
+  card must stay a harmless no-op, never a crash (`pickDraftCard`'s hand-push
+  is guarded by `!hand.includes`). `pickDraftCard` adds the card + relic,
+  clears combat statuses, and starts the next fight. `newGame(seed, enemyId?)`
+  remains for single-encounter tests (`run.enabled = false`, phase `won` on
+  kill — this is the one path that still reaches a win phase).
 - **Balance is a known open question.** The spider's Poisonous Eyeball still adds
   +2 poison every player turn while poison only decays by 1 → runaway poison when
   fighting it. Early enemies are tuned softer for onboarding. Adjust numbers in

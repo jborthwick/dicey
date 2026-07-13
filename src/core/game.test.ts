@@ -11,6 +11,7 @@ import {
   reroll,
   toggleHold,
 } from "./game";
+import { ENDLESS_ENEMY_IDS, REWARD_CARD_IDS, STARTER_ENEMY_IDS } from "./content";
 import { matchRequirement } from "./dice";
 import { nextInt, seedRng } from "./rng";
 import type { Die, GameState } from "./types";
@@ -276,6 +277,58 @@ describe("game — run progression", () => {
     expect(s.enemy.name).toBe("Bloom Sprite");
     expect(s.player.hand).toContain(pick);
     expect(s.player.passives.some((p) => p.id === "tough-cap")).toBe(true);
+  });
+
+  /** Auto-win every fight and auto-pick the first draft offer each time,
+   *  up to `maxFights` wins (or until the player dies). */
+  function grindRun(seed: number, maxFights: number): GameState {
+    let s = newRun(seed);
+    let guard = 0;
+    while (s.phase !== "lost" && s.run.fightIndex < maxFights && guard++ < 2000) {
+      if (s.phase === "draft") {
+        const [first] = s.run.draftOffers ?? [];
+        if (!first) break;
+        s = pickDraftCard(s, first);
+        continue;
+      }
+      if (s.phase !== "playerTurn") break;
+      while (canReroll(s) && !s.player.hand.some((c) => canPlayCard(s, c))) {
+        s = reroll(s);
+      }
+      const card = s.player.hand.find((c) => canPlayCard(s, c));
+      s = card ? playCard(s, card) : endTurn(s);
+    }
+    return s;
+  }
+
+  it("never wins — runs only end when the player dies", () => {
+    // Grind well past the fixed opener; regardless of outcome, "won"/"runWon"
+    // must never appear as a terminal phase for a run.enabled game.
+    const s = grindRun(11, 30);
+    expect(["playerTurn", "draft", "lost"]).toContain(s.phase);
+  });
+
+  it("cycles random enemies (seeded) once past STARTER_ENEMY_IDS", () => {
+    const s = grindRun(11, STARTER_ENEMY_IDS.length + 3);
+    // Enough fights happened to be in the endless phase, or the player died
+    // trying — either way, nothing crashed getting here.
+    expect(s.run.fightIndex).toBeGreaterThanOrEqual(STARTER_ENEMY_IDS.length);
+    if (s.phase !== "lost") {
+      expect(ENDLESS_ENEMY_IDS as readonly string[]).toContain(s.enemy.id);
+    }
+  });
+
+  it("never throws once every reward card has been collected", () => {
+    // REWARD_CARD_IDS.length wins exhausts the pool; a few more must still
+    // succeed via the already-owned fallback instead of crashing.
+    expect(() => grindRun(11, REWARD_CARD_IDS.length + 5)).not.toThrow();
+  });
+
+  it("picking an already-owned reward card doesn't duplicate it in hand", () => {
+    const s = grindRun(11, REWARD_CARD_IDS.length + 5);
+    const counts = new Map<string, number>();
+    for (const id of s.player.hand) counts.set(id, (counts.get(id) ?? 0) + 1);
+    for (const [id, n] of counts) expect(n, `duplicate card in hand: ${id}`).toBe(1);
   });
 });
 

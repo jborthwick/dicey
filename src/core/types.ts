@@ -168,13 +168,12 @@ export interface ActorDef {
 // Game state
 // ---------------------------------------------------------------------------
 
-export type Phase =
-  | "playerTurn"
-  | "enemyTurn"
-  | "draft"
-  | "won"
-  | "runWon"
-  | "lost";
+/**
+ * "won" is single-encounter mode's terminal state (`newGame`, `run.enabled ===
+ * false`). Multi-fight runs (`newRun`) never reach a win phase — they cycle
+ * enemies forever via `pickDraftCard`'s endless phase until the player dies.
+ */
+export type Phase = "playerTurn" | "enemyTurn" | "draft" | "won" | "lost";
 
 /** Multi-fight run metadata. Single-encounter mode sets `enabled: false`. */
 export interface RunProgress {
