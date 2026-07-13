@@ -30,6 +30,13 @@ export const PASSIVES: Record<string, Passive> = {
     when: "opponentTurnStart",
     effect: { kind: "status", target: "enemy", status: "poison", stacks: 2 },
   },
+  "rocky-hide": {
+    id: "rocky-hide",
+    name: "Rocky Hide",
+    text: "Gain 2 Block at the start of the opponent's turn.",
+    when: "opponentTurnStart",
+    effect: { kind: "block", target: "self", amount: 2 },
+  },
 };
 
 export function getPassive(id: string): Passive {

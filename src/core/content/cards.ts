@@ -200,6 +200,58 @@ export const CARDS: Record<string, CardDef> = {
     effects: [{ kind: "block", target: "self", amount: 4 }],
     text: "Gain 4 Block.",
   },
+
+  // --- Golem cards ---
+  "boulder-slam": {
+    id: "boulder-slam",
+    name: "Boulder Slam",
+    element: "earth",
+    requirement: { kind: "symbols", symbol: "earth", count: 1 },
+    effects: [{ kind: "damage", target: "enemy", min: 5, max: 7 }],
+    text: "Deal 5-7 damage.",
+  },
+  "stone-guard": {
+    id: "stone-guard",
+    name: "Stone Guard",
+    element: "earth",
+    requirement: { kind: "symbols", symbol: "earth", count: 1 },
+    effects: [{ kind: "block", target: "self", amount: 5 }],
+    text: "Gain 5 Block.",
+  },
+  "magma-punch": {
+    id: "magma-punch",
+    name: "Magma Punch",
+    element: "earth",
+    requirement: { kind: "symbols", symbol: "earth", count: 1 },
+    effects: [{ kind: "damage", target: "enemy", min: 6, max: 9 }],
+    text: "Deal 6-9 damage.",
+  },
+
+  // --- Skeleton cards ---
+  "claw-swipe": {
+    id: "claw-swipe",
+    name: "Claw Swipe",
+    element: "earth",
+    requirement: { kind: "symbols", symbol: "earth", count: 1 },
+    effects: [{ kind: "damage", target: "enemy", min: 3, max: 5 }],
+    text: "Deal 3-5 damage.",
+  },
+  "bone-rattle": {
+    id: "bone-rattle",
+    name: "Bone Rattle",
+    element: "wind",
+    requirement: { kind: "symbols", symbol: "wind", count: 1 },
+    effects: [{ kind: "status", target: "enemy", status: "silence", stacks: 1 }],
+    text: "Silence 1.",
+  },
+  "sword-slash": {
+    id: "sword-slash",
+    name: "Sword Slash",
+    element: "earth",
+    requirement: { kind: "symbols", symbol: "earth", count: 1 },
+    effects: [{ kind: "damage", target: "enemy", min: 4, max: 6 }],
+    text: "Deal 4-6 damage.",
+  },
 };
 
 export function getCard(id: string): CardDef {

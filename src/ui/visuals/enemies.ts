@@ -66,6 +66,50 @@ export const ENEMY_VISUALS: Record<string, EnemyVisual> = {
       die: clip("poisonous-spider", "die.png", 10, false),
     },
   },
+  "golem-blue": {
+    source: "Golems_Free_Version / Golem_1 Blue (white-swoosh-VFX attack+hurt) — free",
+    displayScale: ENEMY_DISPLAY_SCALE,
+    defaultClip: "idle",
+    clips: {
+      idle: clip("golem-blue", "idle.png", 6, true),
+      attack: clip("golem-blue", "attack.png", 10, false),
+      hurt: clip("golem-blue", "hurt.png", 10, false),
+      die: clip("golem-blue", "die.png", 8, false),
+    },
+  },
+  "golem-orange": {
+    source: "Golems_Free_Version / Golem_1 Orange (white-swoosh-VFX attack+hurt) — free",
+    displayScale: ENEMY_DISPLAY_SCALE,
+    defaultClip: "idle",
+    clips: {
+      idle: clip("golem-orange", "idle.png", 6, true),
+      attack: clip("golem-orange", "attack.png", 10, false),
+      hurt: clip("golem-orange", "hurt.png", 10, false),
+      die: clip("golem-orange", "die.png", 8, false),
+    },
+  },
+  // No die clip — pack has no death frame. resolveEnemyClip falls back to
+  // defaultClip (idle) on defeat; see the "missing die anim" note in README.
+  skeleton: {
+    source: "FREE_SkeletonPack_ByPhewcumber / Default Unarmed (no shield) — free",
+    displayScale: ENEMY_DISPLAY_SCALE,
+    defaultClip: "idle",
+    clips: {
+      idle: clip("skeleton", "idle.png", 6, true),
+      attack: clip("skeleton", "attack.png", 10, false),
+      hurt: clip("skeleton", "hurt.png", 10, false),
+    },
+  },
+  "skeleton-sword": {
+    source: "FREE_SkeletonPack_ByPhewcumber / Default Sword (no shield) — free",
+    displayScale: ENEMY_DISPLAY_SCALE,
+    defaultClip: "idle",
+    clips: {
+      idle: clip("skeleton-sword", "idle.png", 6, true),
+      attack: clip("skeleton-sword", "attack.png", 10, false),
+      hurt: clip("skeleton-sword", "hurt.png", 10, false),
+    },
+  },
 };
 
 export function getEnemyVisual(enemyId: string): EnemyVisual | undefined {

@@ -34,6 +34,42 @@ export const ENEMIES: Record<string, ActorDef> = {
     handIds: ["bite", "web-shot", "venom-spit", "skitter"],
     passiveIds: ["poisonous-eyeball"],
   },
+
+  // Not in STARTER_ENEMY_IDS yet — available (makeEnemy/newGame/headless) but
+  // not part of the default run. Add an id here to STARTER_ENEMY_IDS to wire
+  // one into the main rotation.
+  "golem-blue": {
+    id: "golem-blue",
+    name: "Blue Golem",
+    hp: 75,
+    diceIds: ["stone", "stone", "tide", "gale", "spark"],
+    handIds: ["boulder-slam", "stone-guard"],
+    passiveIds: ["rocky-hide"],
+  },
+  "golem-orange": {
+    id: "golem-orange",
+    name: "Orange Golem",
+    hp: 70,
+    diceIds: ["stone", "stone", "gale", "spark", "prism"],
+    handIds: ["boulder-slam", "magma-punch"],
+    passiveIds: ["rocky-hide"],
+  },
+  skeleton: {
+    id: "skeleton",
+    name: "Skeleton",
+    hp: 35,
+    diceIds: ["stone", "tide", "gale", "gale", "spark"],
+    handIds: ["claw-swipe", "bone-rattle"],
+    passiveIds: ["tough-cap"],
+  },
+  "skeleton-sword": {
+    id: "skeleton-sword",
+    name: "Skeleton Warrior",
+    hp: 45,
+    diceIds: ["stone", "stone", "tide", "gale", "spark"],
+    handIds: ["sword-slash", "bone-rattle"],
+    passiveIds: ["tough-cap"],
+  },
 };
 
 /** Early enemy order for runs. Fight 1 defaults to mushroom. */
