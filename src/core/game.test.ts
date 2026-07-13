@@ -260,6 +260,23 @@ describe("game — entangle is bounded and never softlocks", () => {
   });
 });
 
+describe("game — silence is bounded", () => {
+  it("never exceeds its cap (1) against the skeleton's repeat Bone Rattle casts", () => {
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+      let s = newGame(seed, "skeleton");
+      let guard = 0;
+      while (s.phase === "playerTurn" && guard++ < 60) {
+        expect(s.player.statuses.silence ?? 0).toBeLessThanOrEqual(1);
+        if (canReroll(s) && !s.player.hand.some((c) => canPlayCard(s, c))) {
+          s = reroll(s);
+        }
+        const card = s.player.hand.find((c) => canPlayCard(s, c));
+        s = card ? playCard(s, card) : endTurn(s);
+      }
+    }
+  });
+});
+
 describe("endTurnTimeline", () => {
   it("last beat equals endTurn(); beats are ordered snapshots", () => {
     const s = newGame(42);
