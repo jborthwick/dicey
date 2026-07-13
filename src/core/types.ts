@@ -36,7 +36,8 @@ export const ELEMENTS: readonly Symbol[] = ["wind", "light", "water", "earth"];
  * Stackable status effects. The number stored on an actor is the stack count
  * (interpreted per-status in `game.ts`):
  *  - poison:   damage taken at the start of the afflicted's turn; ticks down 1.
- *  - silence:  cannot play cards on your turn. Ticks down 1 per your turn.
+ *  - silence:  the next card the afflicted actor plays fizzles (dice spent,
+ *              no effect), consuming 1 stack; also ticks down 1 per turn.
  *  - entangle: locks that many dice from being rerolled. Ticks down 1 per turn.
  *  - weaken:   outgoing damage reduced while > 0. Ticks down 1 per turn.
  *  - block:    absorbs incoming damage; cleared at the start of the owner's turn.
@@ -208,7 +209,7 @@ export type BeatAction =
   | { kind: "enemyStart" } // enemy turn begins and rolls
   | { kind: "reroll" } // enemy rerolled toward a playable hand
   | { kind: "play"; cardId: string } // enemy played a card
-  | { kind: "idle" } // enemy silenced or found no move
+  | { kind: "idle" } // enemy found no affordable move
   | { kind: "resolve" }; // back to the player (or game over)
 
 /** One beat of an animated turn: a board snapshot plus what caused it. */

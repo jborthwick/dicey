@@ -260,13 +260,51 @@ describe("game — entangle is bounded and never softlocks", () => {
   });
 });
 
-describe("game — silence is bounded", () => {
-  it("never exceeds its cap (1) against the skeleton's repeat Bone Rattle casts", () => {
+describe("game — silence fizzles a played card instead of blocking play", () => {
+  it("canPlayCard ignores silence entirely", () => {
+    let s = newGame(1);
+    const dice = [...s.player.dice];
+    dice[0] = prismDie("water");
+    s = { ...s, player: { ...s.player, dice, statuses: { silence: 5 } } };
+    expect(canPlayCard(s, "ice-cone")).toBe(true);
+  });
+
+  it("playing a card while silenced spends dice, skips the effect, and consumes 1 stack", () => {
+    let s = newGame(1);
+    const dice = [...s.player.dice];
+    dice[0] = prismDie("water");
+    s = {
+      ...s,
+      player: { ...s.player, dice, statuses: { silence: 2 } },
+    };
+    const hpBefore = s.enemy.hp;
+
+    const r = playCard(s, "ice-cone");
+
+    expect(r.enemy.hp).toBe(hpBefore); // Ice Cone's damage never applied
+    expect(r.player.dice[0]!.spent).toBe(true); // the die is still spent
+    expect(r.player.statuses.silence).toBe(1); // one stack consumed
+    expect(r.log.at(-1)).toMatch(/fizzles/);
+  });
+
+  it("play resolves normally again once silence reaches 0", () => {
+    let s = newGame(1);
+    const dice = [...s.player.dice];
+    dice[0] = prismDie("water");
+    s = { ...s, player: { ...s.player, dice, statuses: {} } };
+    const hpBefore = s.enemy.hp;
+
+    const r = playCard(s, "ice-cone");
+
+    expect(r.enemy.hp).toBeLessThan(hpBefore); // Ice Cone's damage actually landed
+  });
+
+  it("never exceeds its cap (2) against the skeleton's repeat Bone Rattle casts", () => {
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
       let s = newGame(seed, "skeleton");
       let guard = 0;
       while (s.phase === "playerTurn" && guard++ < 60) {
-        expect(s.player.statuses.silence ?? 0).toBeLessThanOrEqual(1);
+        expect(s.player.statuses.silence ?? 0).toBeLessThanOrEqual(2);
         if (canReroll(s) && !s.player.hand.some((c) => canPlayCard(s, c))) {
           s = reroll(s);
         }

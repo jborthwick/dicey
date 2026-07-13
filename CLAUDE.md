@@ -87,6 +87,10 @@ Same seed ⇒ identical run. Determinism is a hard invariant; there's a test for
   silence / entangle / weaken decay at the *end* of the actor's turn. Entangle
   locks the first N dice at roll time — locked dice are flagged `entangled` (implies
   held + spent) so the UI can render them distinctly from dice you spent yourself.
+  Silence doesn't block card plays outright — `canPlayCard` ignores it entirely.
+  Instead, the next card the silenced actor plays fizzles (dice still spent, no
+  effect) and consumes one stack, handled centrally in `spendAndResolve` so it's
+  symmetric for both sides (the player's Hush, the skeleton's Bone Rattle).
 - **Entangle can't softlock or run away.** It's capped via `STATUS_CAPS` in
   `content/config.ts` (currently 2), and `rollAllForTurn` never locks your *last*
   die, so you always keep usable dice. Add caps for other statuses there if they
@@ -120,13 +124,8 @@ Same seed ⇒ identical run. Determinism is a hard invariant; there's a test for
   kill — this is the one path that still reaches a win phase).
 - **Balance is a known open question.** The spider's Poisonous Eyeball still adds
   +2 poison every player turn while poison only decays by 1 → runaway poison when
-  fighting it. The skeleton's Bone Rattle has the same shape: it has good odds of
-  a wind-showing die most turns, so it recasts silence often enough that even
-  capped at 1 (`STATUS_CAPS`), the player can still be locked out of playing
-  cards for the majority of a long fight — capping stops it from ever getting
-  *worse* than one lost turn per cast, it doesn't fix the underlying frequency.
-  Early enemies are tuned softer for onboarding. Adjust numbers in `content/`
-  only — the rules in `game.ts` shouldn't need to change.
+  fighting it. Early enemies are tuned softer for onboarding. Adjust numbers in
+  `content/` only — the rules in `game.ts` shouldn't need to change.
 - **Asset provenance is tracked, not assumed.** `public/assets/enemies/README.md`
   is the source-of-truth ledger (pack, license, exact source files) for every
   committed sprite; `src/ui/visuals/enemies.ts`'s `source` field is the

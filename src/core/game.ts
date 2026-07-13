@@ -280,12 +280,6 @@ function firstAffordable(actor: Actor): string | null {
 function enemyTurn(draft: GameState, onStep: (action: BeatAction) => void): void {
   const enemy = draft.enemy;
 
-  if (stacksOf(enemy, "silence") > 0) {
-    log(draft, `${enemy.name} is Silenced and cannot act.`);
-    onStep({ kind: "idle" });
-    return;
-  }
-
   // Reroll all unheld/unspent dice while nothing is affordable.
   while (enemy.actionsRemaining > 0 && firstAffordable(enemy) === null) {
     for (const die of enemy.dice) {
@@ -313,8 +307,15 @@ function enemyTurn(draft: GameState, onStep: (action: BeatAction) => void): void
 // Shared card resolution
 // ---------------------------------------------------------------------------
 
-/** Spend the matching dice for a card and apply its effects. Assumes the card
- *  is in hand and affordable (callers validate). Mutates the draft. */
+/**
+ * Spend the matching dice for a card and apply its effects. Assumes the card
+ * is in hand and affordable (callers validate). Mutates the draft.
+ *
+ * If the actor is Silenced, the dice are still spent but the card's effects
+ * are skipped (fizzle) and one silence stack is consumed instead — this is
+ * symmetric for both sides, since either can be silenced (the player's Hush,
+ * the skeleton's Bone Rattle).
+ */
 function spendAndResolve(draft: GameState, side: Side, cardId: string): void {
   const actor = actorOf(draft, side);
   const card = getCard(cardId);
@@ -322,6 +323,14 @@ function spendAndResolve(draft: GameState, side: Side, cardId: string): void {
   if (!indices) throw new Error(`${actor.name} cannot pay for ${card.name}`);
   for (const i of indices) actor.dice[i]!.spent = true;
   const spentSymbols = indices.map((i) => symbolOf(actor.dice[i]!)).join(", ");
+
+  const silence = stacksOf(actor, "silence");
+  if (silence > 0) {
+    actor.statuses.silence = silence - 1;
+    log(draft, `${actor.name} plays ${card.name} [${spentSymbols}], but it fizzles — Silenced.`);
+    return;
+  }
+
   log(draft, `${actor.name} plays ${card.name} [${spentSymbols}].`);
   for (const effect of card.effects) applyEffect(draft, effect, side);
 }
@@ -535,7 +544,6 @@ export function canBlockAction(state: GameState): boolean {
 /** Whether the player may currently play `cardId`. */
 export function canPlayCard(state: GameState, cardId: string): boolean {
   if (state.phase !== "playerTurn") return false;
-  if (stacksOf(state.player, "silence") > 0) return false;
   if (!state.player.hand.includes(cardId)) return false;
   const card = CARDS[cardId];
   if (!card) return false;
