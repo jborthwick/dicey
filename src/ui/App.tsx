@@ -170,6 +170,7 @@ export default function App() {
   const [seedInput, setSeedInput] = useState(boot.seedInput);
   const [state, setState] = useState<GameState>(boot.state);
   const [logOpen, setLogOpen] = useState(false);
+  const [confirmNewOpen, setConfirmNewOpen] = useState(false);
 
   // A per-die counter, bumped whenever that die actually rolls. It feeds the
   // die's React `key`, so a rolled die remounts and replays its CSS tumble while
@@ -228,7 +229,7 @@ export default function App() {
     if (REDUCED_MOTION || !sourceEl) return;
     const side = targetSideOf(card, actorSide);
     const destEl = document.querySelector(
-      side === "enemy" ? ".enemy .hpbar" : ".player .hpbar",
+      side === "enemy" ? ".enemy .hpbar" : ".player-strip .hpbar",
     );
     if (!destEl) return;
     const from = centerOf(sourceEl);
@@ -256,7 +257,7 @@ export default function App() {
   const spawnFloater = (side: "player" | "enemy", amount: number, variant: Floater["variant"]) => {
     if (REDUCED_MOTION || amount <= 0) return;
     const barEl = document.querySelector(
-      side === "enemy" ? ".enemy .hpbar" : ".player .hpbar",
+      side === "enemy" ? ".enemy .hpbar" : ".player-strip .hpbar",
     );
     if (!barEl) return;
     const c = centerOf(barEl);
@@ -346,6 +347,8 @@ export default function App() {
   };
 
   const restart = () => {
+    setConfirmNewOpen(false);
+    setLogOpen(false);
     setFrames([]);
     setFrameIdx(0);
     setState(newRun(seedInput || Date.now().toString()));
@@ -379,21 +382,27 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <h1>Dicey</h1>
-        <div className="seed">
-          <label>
-            seed{" "}
+        <div className="topbar-left">
+          <h1>Dicey</h1>
+          <label className="seed">
+            <span className="seed-label">seed</span>
             <input value={seedInput} onChange={(e) => setSeedInput(e.target.value)} />
           </label>
-          <button onClick={restart}>New run</button>
+        </div>
+        <div className="topbar-right">
           {fightLabel && <span className="turn">{fightLabel}</span>}
-          <span className="turn">Turn {state.turn}</span>
-          <button onClick={() => setLogOpen(true)}>📜 Log</button>
+          <span className="turn">T{state.turn}</span>
+          <button className="topbar-btn" onClick={() => setLogOpen(true)} title="Log">
+            📜
+          </button>
+          <button className="topbar-btn" onClick={() => setConfirmNewOpen(true)}>
+            New
+          </button>
         </div>
       </header>
 
-      {/* Scrollable fight chrome: hand can grow to 2+ rows without shoving the tray off-screen. */}
-      <div className="fight-scroll">
+      {/* Fixed fight layout: everything fits in the viewport — no scroll region. */}
+      <div className="fight">
         <EnemyPanel
           enemy={state.enemy}
           acting={state.phase === "enemyTurn"}
@@ -413,31 +422,20 @@ export default function App() {
           <CardGrid state={state} onPlay={playPlayerCard} disabled={drafting || over} />
           {resolving && <div className="dim-overlay" aria-hidden="true" />}
         </div>
-      </div>
 
-      {/* Pinned dock: HP + dice/actions stay reachable on short phones. */}
-      <div className="dock">
-        <button
-          className={`end-turn end-turn-pill${endTurnNudge ? " nudge" : ""}`}
-          disabled={!canAct || resolving}
-          onClick={doEndTurn}
-        >
-          End Turn →
-        </button>
-        <DiceTray
+        <PlayerStrip
           state={state}
           rollNonce={rollNonce}
           resolving={resolving}
+          endTurnNudge={endTurnNudge}
+          hit={hit.player}
           onToggle={(i) => setState(toggleHold(state, i))}
           onReroll={doReroll}
           onSkip={skipResolve}
+          onEndTurn={doEndTurn}
         />
-        <PlayerBar player={state.player} hit={hit.player} passives={state.player.passives} />
       </div>
 
-      {/* position:fixed overlays live outside .fight-scroll: nesting a fixed
-          element inside a -webkit-overflow-scrolling: touch ancestor clips it
-          to that ancestor's box on iOS/WebKit instead of the true viewport. */}
       {drafting && state.run.draftOffers && (
         <DraftOverlay
           offers={state.run.draftOffers}
@@ -448,6 +446,13 @@ export default function App() {
       )}
 
       {logOpen && <LogOverlay lines={state.log} onClose={() => setLogOpen(false)} />}
+
+      {confirmNewOpen && (
+        <ConfirmNewOverlay
+          onCancel={() => setConfirmNewOpen(false)}
+          onConfirm={restart}
+        />
+      )}
 
       <Projectiles
         projectiles={projectiles}
@@ -535,11 +540,10 @@ function FlyingCard({
  * fixed by shifting sideways (`--tip-shift`); vertical overflow (no room
  * above the anchor) flips the tooltip to render below instead.
  *
- * The boundary to stay inside isn't the browser viewport — `.fight-scroll`
- * clips horizontally (`overflow-x: hidden`) and is itself inset from the
- * viewport edge, so a tooltip that merely fit *within the window* could
- * still get silently clipped by that ancestor. Walk up to the nearest
- * clipping ancestor and measure against that instead.
+ * The boundary to stay inside isn't only the browser viewport — a clipping
+ * ancestor (overflow hidden/auto/scroll) can still crop a tooltip that would
+ * otherwise fit in the window. Walk up to the nearest clipping ancestor and
+ * measure against that instead.
  */
 function nearestClippingRect(el: Element): DOMRect {
   let node: Element | null = el.parentElement;
@@ -644,9 +648,16 @@ function EnemyPanel({
   return (
     <section className={`enemy${acting ? " acting" : ""}`}>
       <div className="enemy-name">
-        {enemy.name}
-        {acting && <span className="acting-tag">acting…</span>}
-        <StatusRow statuses={enemy.statuses} />
+        <span className="enemy-title">
+          {enemy.name}
+          {acting && <span className="acting-tag">acting…</span>}
+        </span>
+        <span className="enemy-badges">
+          {enemy.passives.map((p) => (
+            <RelicBadge key={p.id} passive={p} />
+          ))}
+          <StatusRow statuses={enemy.statuses} />
+        </span>
       </div>
       <div className="enemy-stage">
         <EnemySprite
@@ -657,9 +668,6 @@ function EnemyPanel({
         />
       </div>
       <HpBar cur={enemy.hp} max={enemy.maxHp} hit={hit} />
-      {enemy.passives.map((p) => (
-        <RelicBadge key={p.id} passive={p} />
-      ))}
       {acting && (
         <>
           <EnemyDice enemy={enemy} enemyNonce={enemyNonce} />
@@ -808,6 +816,9 @@ function DraftOverlay({
   );
 }
 
+/** Fixed hand size the fight layout budgets for (3×2 grid). */
+const HAND_SLOTS = 6;
+
 function CardGrid({
   state,
   onPlay,
@@ -818,9 +829,13 @@ function CardGrid({
   disabled?: boolean;
 }) {
   const cards = useMemo(() => state.player.hand.map(getCard), [state.player.hand]);
+  const slots = Array.from({ length: HAND_SLOTS }, (_, i) => cards[i] ?? null);
   return (
     <section className="cards">
-      {cards.map((card) => {
+      {slots.map((card, i) => {
+        if (!card) {
+          return <div key={`empty-${i}`} className="card card-empty" aria-hidden />;
+        }
         const playable = !disabled && canPlayCard(state, card.id);
         return (
           <button
@@ -857,63 +872,95 @@ function CostView({ card }: { card: CardDef }) {
   return <span>{req.count === 1 ? "1 Pair" : `${req.count} Pairs`} 🎲🎲</span>;
 }
 
-function DiceTray({
+function PlayerStrip({
   state,
   rollNonce,
   resolving,
+  endTurnNudge,
+  hit,
   onToggle,
   onReroll,
   onSkip,
+  onEndTurn,
 }: {
   state: GameState;
   rollNonce: number[];
   resolving: boolean;
+  endTurnNudge: boolean;
+  hit: { n: number; v: string };
   onToggle: (i: number) => void;
   onReroll: () => void;
   onSkip: () => void;
+  onEndTurn: () => void;
 }) {
-  const dice = state.player.dice;
+  const player = state.player;
+  const dice = player.dice;
   const canAct = state.phase === "playerTurn";
   // Stagger only the dice that can actually roll, so a partial reroll of one or
   // two dice stays snappy instead of waiting out phantom slots.
   let rollOrder = 0;
   return (
-    <section className="tray">
-      <div className="dice">
-        {dice.map((d, i) => {
-          const willRoll = !d.held && !d.spent;
-          const delay = willRoll ? rollOrder++ * STAGGER_MS : 0;
-          return (
-            // The nonce in the key remounts the die when it rolls, replaying the
-            // tumble (CSS) and the symbol shuffle (DieView's mount effect).
-            <DieView
-              key={`${i}-${rollNonce[i] ?? 0}`}
-              die={d}
-              index={i}
-              delay={delay}
-              canAct={canAct}
-              onToggle={onToggle}
-            />
-          );
-        })}
-      </div>
-      <div className="tray-actions">
-        {resolving ? (
-          <button className="skip" onClick={onSkip}>
-            Skip ⏭
-          </button>
-        ) : (
-          <button
-            className="action-btn reroll"
-            disabled={!canAct || !canReroll(state)}
-            onClick={onReroll}
-            title={`Reroll (${state.player.actionsRemaining} left)`}
-          >
-            <span className="action-glyph">⟳</span>
-            <span className="action-count">{state.player.actionsRemaining}</span>
-          </button>
+    <section className="player-strip">
+      <div className="player-strip-head">
+        <div className="player-name">
+          {player.name}
+          <StatusRow statuses={player.statuses} />
+        </div>
+        {player.passives.length > 0 && (
+          <div className="player-relics">
+            {player.passives.map((p) => (
+              <RelicBadge key={p.id} passive={p} />
+            ))}
+          </div>
         )}
       </div>
+      <div className="player-strip-actions">
+        <div className="dice">
+          {dice.map((d, i) => {
+            const willRoll = !d.held && !d.spent;
+            const delay = willRoll ? rollOrder++ * STAGGER_MS : 0;
+            return (
+              // The nonce in the key remounts the die when it rolls, replaying the
+              // tumble (CSS) and the symbol shuffle (DieView's mount effect).
+              <DieView
+                key={`${i}-${rollNonce[i] ?? 0}`}
+                die={d}
+                index={i}
+                delay={delay}
+                canAct={canAct}
+                onToggle={onToggle}
+              />
+            );
+          })}
+        </div>
+        <div className="tray-actions">
+          {resolving ? (
+            <button className="skip" onClick={onSkip}>
+              Skip ⏭
+            </button>
+          ) : (
+            <button
+              className="action-btn reroll"
+              disabled={!canAct || !canReroll(state)}
+              onClick={onReroll}
+              title={`Reroll (${player.actionsRemaining} left)`}
+            >
+              <span className="action-glyph">⟳</span>
+              <span className="action-count">{player.actionsRemaining}</span>
+            </button>
+          )}
+        </div>
+      </div>
+      <HpBar cur={player.hp} max={player.maxHp} hit={hit} />
+      {!resolving && (
+        <button
+          className={`end-turn end-turn-bar${endTurnNudge ? " nudge" : ""}`}
+          disabled={!canAct}
+          onClick={onEndTurn}
+        >
+          End Turn →
+        </button>
+      )}
     </section>
   );
 }
@@ -987,33 +1034,6 @@ function DieView({
   );
 }
 
-function PlayerBar({
-  player,
-  hit,
-  passives,
-}: {
-  player: Actor;
-  hit: { n: number; v: string };
-  passives: Passive[];
-}) {
-  return (
-    <section className="player">
-      <div className="player-name">
-        {player.name}
-        <StatusRow statuses={player.statuses} />
-      </div>
-      <HpBar cur={player.hp} max={player.maxHp} hit={hit} />
-      {passives.length > 0 && (
-        <div className="player-relics">
-          {passives.map((p) => (
-            <RelicBadge key={p.id} passive={p} />
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
 function HpBar({
   cur,
   max,
@@ -1078,6 +1098,31 @@ function StatusBadge({ id, stacks }: { id: string; stacks: number }) {
         </div>
       )}
     </span>
+  );
+}
+
+function ConfirmNewOverlay({
+  onCancel,
+  onConfirm,
+}: {
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="draft-overlay confirm-overlay" onClick={onCancel}>
+      <div className="draft-panel confirm-panel" onClick={(e) => e.stopPropagation()}>
+        <h2>Start a new run?</h2>
+        <p className="confirm-text">Your current run will be lost.</p>
+        <div className="confirm-actions">
+          <button className="confirm-cancel" onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="confirm-ok" onClick={onConfirm}>
+            New run
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

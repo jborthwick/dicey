@@ -32,76 +32,86 @@ body {
   height: 100%;
   max-height: 100dvh;
   margin: 0 auto;
-  padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  padding: 6px 8px calc(16px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   overflow: hidden;
 }
 
-/* Enemy + hand + log scroll; dock (HP / dice) stays pinned below. The enemy's
-   dice/hand rows only render while it's acting, so this area can genuinely
-   grow taller than the viewport for a beat or two — scrolling stays enabled
-   so the dock never gets pushed off-screen, but the scrollbar chrome itself
-   is hidden so it doesn't pop a visible track in and out as that happens. */
-.fight-scroll {
+/* Single fixed fight column — no scroll. Flex children share the viewport. */
+.fight {
   flex: 1 1 auto;
   min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.fight-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.dock {
-  position: relative;
-  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-top: 2px;
-  /* Separate scrolling cards from the always-visible controls. */
-  box-shadow: 0 -10px 18px -14px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
 }
 
 /* ---- topbar ---- */
 .topbar {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  width: 100%;
+  min-width: 0;
+}
+.topbar-left,
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.topbar-right {
+  flex-shrink: 0;
+  margin-left: auto;
 }
 .topbar h1 {
   margin: 0;
-  font-size: 20px;
-  letter-spacing: 2px;
+  font-size: 15px;
+  letter-spacing: 1.5px;
+  flex-shrink: 0;
 }
 .seed {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: 4px;
+  font-size: 11px;
   color: var(--ink-dim);
+  min-width: 0;
+}
+.seed-label {
+  flex-shrink: 0;
 }
 .seed input {
-  width: 84px;
+  width: 72px;
+  min-width: 0;
   background: var(--panel);
   border: 1px solid var(--panel-2);
   color: var(--ink);
   border-radius: 6px;
-  padding: 3px 6px;
+  padding: 2px 5px;
+  font-size: 11px;
 }
-.seed .turn {
+.topbar .turn {
   font-weight: 600;
+  font-size: 11px;
   color: var(--ink);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.topbar-btn {
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 10px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 button {
   cursor: pointer;
@@ -118,21 +128,48 @@ button:disabled {
 }
 
 /* ---- enemy / player panels ---- */
-.enemy,
-.player {
+.enemy {
   background: var(--panel);
   border-radius: 12px;
-  padding: 12px;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
+  /* Shrink when the viewport is short — stage yields, never the HP bar. */
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.enemy-name,
+.enemy > .hpbar,
+.enemy-dice,
+.enemy-hand {
+  flex-shrink: 0;
 }
 .enemy-name,
 .player-name {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 6px;
   font-weight: 600;
+  font-size: 13px;
+  min-width: 0;
+}
+.enemy-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.enemy-badges {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 .passive {
   font-size: 12px;
@@ -215,9 +252,7 @@ button:disabled {
   color: var(--ink-dim);
 }
 /* Enemy panel highlights while the spider takes its turn. Inset, not outset —
-   an outward glow here bled past .fight-scroll's overflow-x: hidden and got
-   cropped on the sides. Inset shadows paint inside the border box, so they
-   can never be clipped by an ancestor's overflow, however tight the gutter. */
+   so the glow can't bleed past a tight ancestor and get cropped. */
 .enemy.acting {
   box-shadow:
     inset 0 0 0 2px #8a5fc0,
@@ -241,9 +276,12 @@ button:disabled {
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  /* Keep the hand (and a peek of a 2nd row) above the pinned dock. */
-  height: clamp(168px, 28vh, 270px);
-  margin: 4px 0 6px;
+  /* Prefer a tall sprite, but shrink first when the fight column is tight so
+     the HP bar (flex-shrink: 0) never gets cropped. */
+  flex: 0 1 auto;
+  height: clamp(140px, 22vh, 220px);
+  min-height: 48px;
+  margin: 2px 0 4px;
   overflow: hidden;
 }
 .enemy-sprite {
@@ -262,29 +300,28 @@ button:disabled {
   max-width: 100%;
 }
 
-/* Short phones: reclaim more room for a 2-row hand above the pinned dock. */
-@media (max-height: 740px) {
+@media (max-height: 700px) {
   .enemy-stage {
-    height: clamp(140px, 24vh, 216px);
+    height: clamp(96px, 16vh, 160px);
+  }
+  .cards {
+    height: 176px;
+    max-height: 176px;
   }
 }
-@media (max-height: 640px) {
+@media (max-height: 600px) {
   .enemy-stage {
-    height: clamp(124px, 22vh, 184px);
+    height: clamp(72px, 12vh, 120px);
   }
-  .card {
-    min-height: 88px;
-    padding: 6px;
+  .cards {
+    height: 156px;
+    max-height: 156px;
   }
-  .log {
-    min-height: 72px;
+  .card-name {
+    font-size: 12px;
   }
-  .player {
-    padding: 8px 10px;
-    gap: 6px;
-  }
-  .tray {
-    padding: 8px 10px;
+  .card-text {
+    font-size: 10px;
   }
 }
 .sprite {
@@ -320,13 +357,14 @@ button:disabled {
 }
 .enemy-dice {
   margin-top: 4px;
+  justify-content: center;
 }
-/* Spider's hand during its turn. */
+/* Spider's hand during its turn — lives under HP in the enemy panel. */
 .enemy-hand {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 .enemy-card {
   flex: 1 1 0;
@@ -371,9 +409,9 @@ button:disabled {
 
 .hpbar {
   position: relative;
-  height: 22px;
+  height: 26px;
   background: #4a1f28;
-  border-radius: 11px;
+  border-radius: 13px;
   overflow: hidden;
 }
 .hpbar-fill {
@@ -538,19 +576,17 @@ button:disabled {
   outline: none;
 }
 
-/* Wraps the hand + log so a single overlay can dim both while the enemy acts,
+/* Wraps the hand so a single overlay can dim it while the enemy acts,
    without touching the enemy panel above (which has its own .acting glow). */
 .player-zone {
   position: relative;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
+/* Dims (and blocks) the player's hand while the enemy resolves. */
 .dim-overlay {
   position: absolute;
-  /* Flush with .player-zone's own box — an inset bleed here would still count
-     toward .fight-scroll's scrollable area (even clipped/decorative overflow
-     does), popping in a vertical scrollbar that isn't there otherwise. */
   inset: 0;
   border-radius: 12px;
   background: rgba(10, 6, 20, 0.6);
@@ -567,59 +603,93 @@ button:disabled {
   }
 }
 
-/* ---- cards ---- */
+/* ---- cards: fixed 3×2, six slots always ---- */
 .cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  max-height: 200px;
+  height: 200px;
 }
 .card {
   text-align: left;
-  min-height: 104px;
+  min-height: 0;
+  max-height: 97px;
   border: 1px solid #ffffff22;
   border-radius: 10px;
-  padding: 8px;
+  padding: 6px 7px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   color: #fff;
+  overflow: hidden;
+}
+.card-empty {
+  background: transparent;
+  border-style: dashed;
+  border-color: #ffffff14;
+  pointer-events: none;
 }
 .card:not(:disabled):hover {
   filter: brightness(1.12);
 }
 .card-name {
   font-weight: 700;
+  font-size: 13px;
+  line-height: 1.2;
 }
 .card-cost {
-  font-size: 16px;
+  font-size: 14px;
+  line-height: 1.1;
 }
 .card-text {
   margin-top: auto;
   font-size: 11px;
-  line-height: 1.3;
+  line-height: 1.25;
   color: #ffffffcc;
+  overflow: hidden;
 }
 
-/* ---- dice tray ---- */
-.tray {
+/* ---- combined player strip (HP + dice + actions) ---- */
+.player-strip {
+  flex: 0 0 auto;
+  background: var(--panel);
+  border-radius: 12px;
+  padding: 12px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.player-strip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.player-strip .player-name {
+  font-size: 14px;
+}
+.player-strip-actions {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  background: var(--panel);
-  border-radius: 12px;
-  padding: 12px;
+  /* Keep dice clear of reroll/end — gaps compress visually on narrow phones. */
+  gap: clamp(12px, 4vw, 18px);
+  min-width: 0;
+  padding: 2px 0;
 }
 .dice {
   display: flex;
-  gap: clamp(4px, 1.5vw, 8px);
+  gap: clamp(6px, 1.8vw, 10px);
   min-width: 0;
 }
 .die {
   position: relative;
-  width: clamp(40px, 11vw, 48px);
-  height: clamp(40px, 11vw, 48px);
+  width: clamp(44px, 12vw, 52px);
+  height: clamp(44px, 12vw, 52px);
   flex-shrink: 0;
   border-radius: 10px;
   border-width: 2px;
@@ -632,7 +702,7 @@ button:disabled {
   animation: die-roll 440ms cubic-bezier(0.2, 0.85, 0.3, 1.2) var(--roll-delay, 0ms) both;
 }
 .die-glyph {
-  font-size: clamp(18px, 5vw, 24px);
+  font-size: clamp(20px, 5.5vw, 26px);
   line-height: 1;
 }
 
@@ -800,11 +870,27 @@ button:disabled {
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+@media (max-width: 400px) {
+  .dice {
+    gap: 5px;
+  }
+  .player-strip-actions {
+    gap: 14px;
+  }
+  .die,
+  .action-btn {
+    width: clamp(42px, 11vw, 48px);
+    height: clamp(42px, 11vw, 48px);
+  }
 }
 .action-btn {
-  width: clamp(40px, 11vw, 48px);
-  height: clamp(40px, 11vw, 48px);
+  width: clamp(44px, 12vw, 52px);
+  height: clamp(44px, 12vw, 52px);
   flex-shrink: 0;
   padding: 0;
   display: flex;
@@ -815,7 +901,7 @@ button:disabled {
   line-height: 1;
 }
 .action-glyph {
-  font-size: clamp(18px, 5vw, 24px);
+  font-size: clamp(20px, 5.5vw, 26px);
 }
 .action-count {
   font-size: 11px;
@@ -823,6 +909,15 @@ button:disabled {
 }
 .end-turn {
   font-weight: 700;
+  font-size: 13px;
+  padding: 10px 14px;
+  white-space: nowrap;
+  border-radius: 999px;
+}
+.end-turn-bar {
+  width: 100%;
+  border-radius: 10px;
+  padding: 10px 14px;
 }
 /* Gold + glow only when End Turn is the only thing left to do; otherwise it
    stays a neutral button so it doesn't outrank playable cards / rerolls. */
@@ -831,18 +926,6 @@ button:disabled {
   border-color: #e2bd52;
   color: #221a05;
   animation: end-turn-glow 2s ease-in-out infinite;
-}
-/* Floats above the dice/HP stack, centered, so it's reachable without
-   competing for space in the tray on narrow phones. */
-.end-turn-pill {
-  position: absolute;
-  top: -10px;
-  left: 50%;
-  transform: translate(-50%, -100%);
-  z-index: 5;
-  border-radius: 999px;
-  padding: 10px 22px;
-  box-shadow: 0 6px 18px -4px rgba(0, 0, 0, 0.6);
 }
 @keyframes end-turn-glow {
   0%,
@@ -859,15 +942,18 @@ button:disabled {
   background: #4a3f6b;
   border-color: #6b5b96;
   font-weight: 600;
+  font-size: 12px;
+  padding: 8px 12px;
 }
 
 /* ---- banner ---- */
 .banner {
   text-align: center;
-  padding: 10px;
+  padding: 6px 8px;
   border-radius: 10px;
   font-weight: 700;
-  font-size: 18px;
+  font-size: 14px;
+  flex: 0 0 auto;
 }
 .banner.won {
   background: #1e5c39;
@@ -923,8 +1009,33 @@ button:disabled {
 .player-relics {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.confirm-panel {
+  max-width: 320px;
+}
+.confirm-text {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+.confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: stretch;
+}
+.confirm-actions button {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 10px;
+}
+.confirm-ok {
+  background: #5c1e2a;
+  border-color: #a04555;
 }
 
 /* ---- log ---- */
