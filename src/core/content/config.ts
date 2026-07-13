@@ -1,7 +1,10 @@
 import type { Status } from "../types";
 
-/** Rerolls allowed per turn after the free initial roll. */
-export const REROLLS_PER_TURN = 2;
+/** Actions (reroll or block) allowed per turn, after the free initial roll. */
+export const ACTIONS_PER_TURN = 3;
+
+/** Shield granted by spending an action on Block. */
+export const BLOCK_ACTION_AMOUNT = 4;
 
 /** Safety cap on how many cards one actor may play in a single turn. */
 export const MAX_CARDS_PER_TURN = 6;

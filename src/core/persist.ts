@@ -108,7 +108,7 @@ function isActor(v: unknown): v is Actor {
   if (!isRecord(v)) return false;
   if (typeof v.id !== "string" || typeof v.name !== "string") return false;
   if (typeof v.hp !== "number" || typeof v.maxHp !== "number") return false;
-  if (typeof v.rollsRemaining !== "number") return false;
+  if (typeof v.actionsRemaining !== "number") return false;
   if (!isStatuses(v.statuses)) return false;
   if (!Array.isArray(v.dice) || !v.dice.every(isDie)) return false;
   if (!Array.isArray(v.hand) || !v.hand.every((id) => typeof id === "string")) {

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  blockAction,
+  canBlockAction,
   canPlayCard,
   canReroll,
   endTurn,
@@ -11,7 +13,7 @@ import {
   reroll,
   toggleHold,
 } from "./game";
-import { ENDLESS_ENEMY_IDS, REWARD_CARD_IDS } from "./content";
+import { BLOCK_ACTION_AMOUNT, ENDLESS_ENEMY_IDS, REWARD_CARD_IDS } from "./content";
 import { matchRequirement } from "./dice";
 import { nextInt, seedRng } from "./rng";
 import type { Die, GameState } from "./types";
@@ -128,10 +130,10 @@ describe("game — starting state", () => {
 });
 
 describe("game — reroll consumes a reroll and respects holds", () => {
-  it("decrements rollsRemaining", () => {
+  it("decrements actionsRemaining", () => {
     const s = newGame(1);
     const r = reroll(s);
-    expect(r.player.rollsRemaining).toBe(s.player.rollsRemaining - 1);
+    expect(r.player.actionsRemaining).toBe(s.player.actionsRemaining - 1);
   });
 
   it("keeps held dice fixed across a reroll", () => {
@@ -152,9 +154,40 @@ describe("game — reroll consumes a reroll and respects holds", () => {
       s = toggleHold(s, i);
     }
     expect(canReroll(s)).toBe(false);
-    const before = s.player.rollsRemaining;
+    const before = s.player.actionsRemaining;
     s = reroll(s);
-    expect(s.player.rollsRemaining).toBe(before);
+    expect(s.player.actionsRemaining).toBe(before);
+  });
+});
+
+describe("game — block action", () => {
+  it("grants BLOCK_ACTION_AMOUNT shield and consumes one action", () => {
+    const s = newGame(1);
+    const before = s.player.actionsRemaining;
+    const r = blockAction(s);
+    expect(r.player.statuses.block).toBe(BLOCK_ACTION_AMOUNT);
+    expect(r.player.actionsRemaining).toBe(before - 1);
+  });
+
+  it("reroll and block share the same action pool", () => {
+    let s = newGame(1);
+    const total = s.player.actionsRemaining;
+    for (let i = 0; i < total; i++) {
+      expect(canBlockAction(s)).toBe(true);
+      s = blockAction(s);
+    }
+    expect(canBlockAction(s)).toBe(false);
+    expect(canReroll(s)).toBe(false);
+    expect(s.player.statuses.block).toBe(BLOCK_ACTION_AMOUNT * total);
+  });
+
+  it("no-ops off the player's turn", () => {
+    let s = newGame(1);
+    s = { ...s, phase: "enemyTurn" };
+    expect(canBlockAction(s)).toBe(false);
+    const r = blockAction(s);
+    expect(r.player.actionsRemaining).toBe(s.player.actionsRemaining);
+    expect(r.player.statuses.block ?? 0).toBe(0);
   });
 });
 

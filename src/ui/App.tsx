@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
+  BLOCK_ACTION_AMOUNT,
+  blockAction,
+  canBlockAction,
   canPlayCard,
   canReroll,
   endTurnTimeline,
@@ -321,6 +324,10 @@ export default function App() {
     setState(reroll(state));
   };
 
+  const doBlock = () => {
+    setState(blockAction(state));
+  };
+
   const doEndTurn = () => {
     if (resolving) return;
     const timeline = endTurnTimeline(state);
@@ -357,7 +364,8 @@ export default function App() {
 
   const canAct = state.phase === "playerTurn";
   const canPlayAny = canAct && state.player.hand.some((id) => canPlayCard(state, id));
-  const endTurnNudge = canAct && !canPlayAny && !canReroll(state) && !resolving;
+  const endTurnNudge =
+    canAct && !canPlayAny && !canReroll(state) && !canBlockAction(state) && !resolving;
 
   return (
     <div className="app">
@@ -413,6 +421,7 @@ export default function App() {
           resolving={resolving}
           onToggle={(i) => setState(toggleHold(state, i))}
           onReroll={doReroll}
+          onBlock={doBlock}
           onSkip={skipResolve}
         />
         <PlayerBar player={state.player} hit={hit.player} passives={state.player.passives} />
@@ -771,6 +780,7 @@ function DiceTray({
   resolving,
   onToggle,
   onReroll,
+  onBlock,
   onSkip,
 }: {
   state: GameState;
@@ -778,6 +788,7 @@ function DiceTray({
   resolving: boolean;
   onToggle: (i: number) => void;
   onReroll: () => void;
+  onBlock: () => void;
   onSkip: () => void;
 }) {
   const dice = state.player.dice;
@@ -811,15 +822,26 @@ function DiceTray({
             Skip ⏭
           </button>
         ) : (
-          <button
-            className="reroll"
-            disabled={!canAct || !canReroll(state)}
-            onClick={onReroll}
-            title={`Reroll (${state.player.rollsRemaining} left)`}
-          >
-            <span className="reroll-glyph">⟳</span>
-            <span className="reroll-count">{state.player.rollsRemaining}</span>
-          </button>
+          <>
+            <button
+              className="action-btn reroll"
+              disabled={!canAct || !canReroll(state)}
+              onClick={onReroll}
+              title={`Reroll (${state.player.actionsRemaining} actions left)`}
+            >
+              <span className="action-glyph">⟳</span>
+              <span className="action-count">{state.player.actionsRemaining}</span>
+            </button>
+            <button
+              className="action-btn block"
+              disabled={!canAct || !canBlockAction(state)}
+              onClick={onBlock}
+              title={`Block — gain ${BLOCK_ACTION_AMOUNT} shield (${state.player.actionsRemaining} actions left)`}
+            >
+              <span className="action-glyph">🛡</span>
+              <span className="action-count">{state.player.actionsRemaining}</span>
+            </button>
+          </>
         )}
       </div>
     </section>

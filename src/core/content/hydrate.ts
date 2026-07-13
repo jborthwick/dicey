@@ -1,5 +1,5 @@
 import type { Actor, ActorDef } from "../types";
-import { REROLLS_PER_TURN } from "./config";
+import { ACTIONS_PER_TURN } from "./config";
 import { getPassive } from "./passives";
 
 /** Turn a list of die-def ids into fresh, unrolled dice. */
@@ -28,7 +28,7 @@ export function hydrateActor(def: ActorDef): Actor {
     statuses: {},
     dice: makeDice(def.diceIds),
     hand: [...def.handIds],
-    rollsRemaining: REROLLS_PER_TURN,
+    actionsRemaining: ACTIONS_PER_TURN,
     passives: def.passiveIds.map(getPassive),
   };
 }

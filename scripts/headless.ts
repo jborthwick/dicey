@@ -35,7 +35,7 @@ const MAX_TURNS = 100;
  *  card (re-checking after each, since a play frees dice / changes the board). */
 function takePlayerTurn(state: GameState): GameState {
   let s = state;
-  while (s.player.rollsRemaining > 0 && !anyPlayable(s) && canReroll(s)) {
+  while (s.player.actionsRemaining > 0 && !anyPlayable(s) && canReroll(s)) {
     s = reroll(s);
   }
   let guard = 0;
@@ -82,7 +82,7 @@ function run(): void {
       console.log(`\n── Turn ${s.turn} ──`);
       console.log(`  player ${s.player.hp}/${s.player.maxHp} HP  ${statusStr(s, "player")}`);
       console.log(`  ${s.enemy.name.toLowerCase()} ${s.enemy.hp}/${s.enemy.maxHp} HP  ${statusStr(s, "enemy")}`);
-      console.log(`  dice:  ${diceLine(s)}  (rerolls: ${s.player.rollsRemaining})`);
+      console.log(`  dice:  ${diceLine(s)}  (actions: ${s.player.actionsRemaining})`);
     }
     const before = s.log.length;
     s = takePlayerTurn(s);
