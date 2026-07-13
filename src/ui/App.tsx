@@ -160,6 +160,7 @@ export default function App() {
   });
   const [seedInput, setSeedInput] = useState(boot.seedInput);
   const [state, setState] = useState<GameState>(boot.state);
+  const [logOpen, setLogOpen] = useState(false);
 
   // A per-die counter, bumped whenever that die actually rolls. It feeds the
   // die's React `key`, so a rolled die remounts and replays its CSS tumble while
@@ -370,6 +371,7 @@ export default function App() {
           <button onClick={restart}>New run</button>
           {fightLabel && <span className="turn">{fightLabel}</span>}
           <span className="turn">Turn {state.turn}</span>
+          <button onClick={() => setLogOpen(true)}>📜 Log</button>
         </div>
       </header>
 
@@ -392,7 +394,6 @@ export default function App() {
 
         <div className="player-zone">
           <CardGrid state={state} onPlay={playPlayerCard} disabled={drafting || over} />
-          <Log lines={state.log} />
           {resolving && <div className="dim-overlay" aria-hidden="true" />}
         </div>
       </div>
@@ -427,6 +428,8 @@ export default function App() {
           onPick={pickCard}
         />
       )}
+
+      {logOpen && <LogOverlay lines={state.log} onClose={() => setLogOpen(false)} />}
 
       <Projectiles
         projectiles={projectiles}
@@ -962,15 +965,25 @@ function StatusRow({ statuses }: { statuses: Actor["statuses"] }) {
   );
 }
 
-function Log({ lines }: { lines: string[] }) {
-  const recent = lines.slice(-8);
+function LogOverlay({ lines, onClose }: { lines: string[]; onClose: () => void }) {
+  const recent = lines.slice(-30);
   return (
-    <section className="log">
-      {recent.map((l, i) => (
-        <div key={lines.length - recent.length + i} className="log-line">
-          {l}
-        </div>
-      ))}
-    </section>
+    <div className="log-overlay" onClick={onClose}>
+      <div className="draft-panel log-panel" onClick={(e) => e.stopPropagation()}>
+        <h2>
+          Log
+          <button className="log-close" onClick={onClose} aria-label="Close log">
+            ✕
+          </button>
+        </h2>
+        <section className="log">
+          {recent.map((l, i) => (
+            <div key={lines.length - recent.length + i} className="log-line">
+              {l}
+            </div>
+          ))}
+        </section>
+      </div>
+    </div>
   );
 }

@@ -879,6 +879,31 @@ button:disabled {
 }
 
 /* ---- log ---- */
+.log-overlay {
+  position: fixed;
+  inset: 0;
+  background: #000000aa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+.log-panel {
+  max-width: 480px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+.log-panel h2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.log-close {
+  padding: 2px 8px;
+  border-radius: 6px;
+}
 .log {
   background: #00000030;
   border-radius: 10px;
@@ -886,6 +911,7 @@ button:disabled {
   font-size: 12px;
   color: var(--ink-dim);
   min-height: 120px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 2px;
