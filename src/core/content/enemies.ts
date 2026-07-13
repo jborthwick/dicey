@@ -26,6 +26,10 @@ export const ENEMIES: Record<string, ActorDef> = {
     handIds: ["breeze", "mewl"],
     passiveIds: ["sonic-screech"],
   },
+  // Not in STARTER_ENEMY_IDS — available (makeEnemy/newGame/headless) but not
+  // part of the default run. Add an id here to STARTER_ENEMY_IDS to wire one
+  // into the main rotation. poisonous-spider specifically has no sprite yet
+  // (public/assets/enemies/poisonous-spider/ is still just a .gitkeep).
   "poisonous-spider": {
     id: "poisonous-spider",
     name: "Poisonous Spider",
@@ -34,10 +38,6 @@ export const ENEMIES: Record<string, ActorDef> = {
     handIds: ["bite", "web-shot", "venom-spit", "skitter"],
     passiveIds: ["poisonous-eyeball"],
   },
-
-  // Not in STARTER_ENEMY_IDS yet — available (makeEnemy/newGame/headless) but
-  // not part of the default run. Add an id here to STARTER_ENEMY_IDS to wire
-  // one into the main rotation.
   "golem-blue": {
     id: "golem-blue",
     name: "Blue Golem",
@@ -70,15 +70,42 @@ export const ENEMIES: Record<string, ActorDef> = {
     handIds: ["sword-slash", "bone-rattle"],
     passiveIds: ["tough-cap"],
   },
+  "rat-white": {
+    id: "rat-white",
+    name: "White Rat",
+    hp: 25,
+    diceIds: ["gale", "gale", "tide", "spark", "stone"],
+    handIds: ["gnaw", "scurry-bite"],
+    passiveIds: ["filthy-bite"],
+  },
+  "flying-demon": {
+    id: "flying-demon",
+    name: "Flying Demon",
+    hp: 60,
+    diceIds: ["gale", "gale", "spark", "prism", "tide"],
+    handIds: ["demon-claw", "dark-pact"],
+    passiveIds: ["sonic-screech"],
+  },
+  knight: {
+    id: "knight",
+    name: "Knight",
+    hp: 80,
+    diceIds: ["stone", "stone", "stone", "tide", "spark"],
+    handIds: ["shield-bash", "heavy-slash"],
+    passiveIds: ["battle-stance"],
+  },
+  "kobold-warrior": {
+    id: "kobold-warrior",
+    name: "Kobold Warrior",
+    hp: 30,
+    diceIds: ["stone", "tide", "gale", "gale", "spark"],
+    handIds: ["rusty-shank", "warcry"],
+    passiveIds: ["tough-cap"],
+  },
 };
 
 /** Early enemy order for runs. Fight 1 defaults to mushroom. */
-export const STARTER_ENEMY_IDS = [
-  "mushroom",
-  "bloom-sprite",
-  "bat",
-  "poisonous-spider",
-] as const;
+export const STARTER_ENEMY_IDS = ["mushroom", "bloom-sprite", "bat"] as const;
 
 export type StarterEnemyId = (typeof STARTER_ENEMY_IDS)[number];
 

@@ -110,6 +110,51 @@ export const ENEMY_VISUALS: Record<string, EnemyVisual> = {
       hurt: clip("skeleton-sword", "hurt.png", 10, false),
     },
   },
+  "rat-white": {
+    source: "RatPack_v1-00 (Phewcumber) / White — free",
+    displayScale: ENEMY_DISPLAY_SCALE,
+    defaultClip: "idle",
+    clips: {
+      idle: clip("rat-white", "idle.png", 8, true),
+      attack: clip("rat-white", "attack.png", 12, false),
+      hurt: clip("rat-white", "hurt.png", 12, false),
+      die: clip("rat-white", "die.png", 10, false),
+    },
+  },
+  "flying-demon": {
+    source: "Flying Demon 2D Pixel Art (xzany, with-outline) — free",
+    displayScale: ENEMY_DISPLAY_SCALE,
+    defaultClip: "idle",
+    clips: {
+      idle: clip("flying-demon", "idle.png", 6, true),
+      attack: clip("flying-demon", "attack.png", 10, false),
+      hurt: clip("flying-demon", "hurt.png", 10, false),
+      die: clip("flying-demon", "die.png", 8, false),
+    },
+  },
+  knight: {
+    source: "Knight 2D Pixel Art (xzany, with-outline, Attack 3) — free",
+    displayScale: ENEMY_DISPLAY_SCALE,
+    defaultClip: "idle",
+    clips: {
+      idle: clip("knight", "idle.png", 6, true),
+      attack: clip("knight", "attack.png", 10, false),
+      hurt: clip("knight", "hurt.png", 10, false),
+      die: clip("knight", "die.png", 8, false),
+    },
+  },
+  // No hurt or die clip — the source pack only ships idle/attack/run, full
+  // stop (not a copy omission). resolveEnemyClip falls back to defaultClip
+  // (idle) for both; see the "missing anims" note in README.
+  "kobold-warrior": {
+    source: "FREE_Kobold Warrior 2D Pixel Art (xzany, with-outline) — free",
+    displayScale: ENEMY_DISPLAY_SCALE,
+    defaultClip: "idle",
+    clips: {
+      idle: clip("kobold-warrior", "idle.png", 6, true),
+      attack: clip("kobold-warrior", "attack.png", 10, false),
+    },
+  },
 };
 
 export function getEnemyVisual(enemyId: string): EnemyVisual | undefined {

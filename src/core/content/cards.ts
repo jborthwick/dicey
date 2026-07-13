@@ -252,6 +252,87 @@ export const CARDS: Record<string, CardDef> = {
     effects: [{ kind: "damage", target: "enemy", min: 4, max: 6 }],
     text: "Deal 4-6 damage.",
   },
+
+  // --- Rat cards ---
+  gnaw: {
+    id: "gnaw",
+    name: "Gnaw",
+    element: "wind",
+    requirement: { kind: "symbols", symbol: "wind", count: 1 },
+    effects: [{ kind: "damage", target: "enemy", min: 2, max: 3 }],
+    text: "Deal 2-3 damage.",
+  },
+  "scurry-bite": {
+    id: "scurry-bite",
+    name: "Scurry Bite",
+    element: "wind",
+    requirement: { kind: "symbols", symbol: "wind", count: 1 },
+    effects: [
+      { kind: "damage", target: "enemy", min: 1, max: 2 },
+      { kind: "status", target: "enemy", status: "poison", stacks: 1 },
+    ],
+    text: "Deal 1-2 damage. Inflict 1 Poison.",
+  },
+
+  // --- Flying Demon cards ---
+  "demon-claw": {
+    id: "demon-claw",
+    name: "Demon Claw",
+    element: "wind",
+    requirement: { kind: "symbols", symbol: "wind", count: 1 },
+    effects: [{ kind: "damage", target: "enemy", min: 5, max: 7 }],
+    text: "Deal 5-7 damage.",
+  },
+  "dark-pact": {
+    id: "dark-pact",
+    name: "Dark Pact",
+    element: "wind",
+    requirement: { kind: "symbols", symbol: "wind", count: 1 },
+    effects: [
+      { kind: "damage", target: "enemy", min: 2, max: 3 },
+      { kind: "status", target: "enemy", status: "weaken", stacks: 1 },
+    ],
+    text: "Deal 2-3 damage. Weaken 1.",
+  },
+
+  // --- Knight cards ---
+  "shield-bash": {
+    id: "shield-bash",
+    name: "Shield Bash",
+    element: "earth",
+    requirement: { kind: "symbols", symbol: "earth", count: 1 },
+    effects: [
+      { kind: "damage", target: "enemy", min: 3, max: 4 },
+      { kind: "block", target: "self", amount: 3 },
+    ],
+    text: "Deal 3-4 damage. Gain 3 Block.",
+  },
+  "heavy-slash": {
+    id: "heavy-slash",
+    name: "Heavy Slash",
+    element: "earth",
+    requirement: { kind: "symbols", symbol: "earth", count: 1 },
+    effects: [{ kind: "damage", target: "enemy", min: 6, max: 8 }],
+    text: "Deal 6-8 damage.",
+  },
+
+  // --- Kobold Warrior cards ---
+  "rusty-shank": {
+    id: "rusty-shank",
+    name: "Rusty Shank",
+    element: "earth",
+    requirement: { kind: "symbols", symbol: "earth", count: 1 },
+    effects: [{ kind: "damage", target: "enemy", min: 3, max: 4 }],
+    text: "Deal 3-4 damage.",
+  },
+  warcry: {
+    id: "warcry",
+    name: "Warcry",
+    element: "special",
+    requirement: { kind: "symbols", symbol: "wind", count: 1 },
+    effects: [{ kind: "status", target: "enemy", status: "weaken", stacks: 1 }],
+    text: "Weaken 1.",
+  },
 };
 
 export function getCard(id: string): CardDef {

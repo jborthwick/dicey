@@ -37,6 +37,20 @@ export const PASSIVES: Record<string, Passive> = {
     when: "opponentTurnStart",
     effect: { kind: "block", target: "self", amount: 2 },
   },
+  "filthy-bite": {
+    id: "filthy-bite",
+    name: "Filthy Bite",
+    text: "Inflict 1 Poison at the start of the opponent's turn.",
+    when: "opponentTurnStart",
+    effect: { kind: "status", target: "enemy", status: "poison", stacks: 1 },
+  },
+  "battle-stance": {
+    id: "battle-stance",
+    name: "Battle Stance",
+    text: "Gain 2 Block at the start of the opponent's turn.",
+    when: "opponentTurnStart",
+    effect: { kind: "block", target: "self", amount: 2 },
+  },
 };
 
 export function getPassive(id: string): Passive {
