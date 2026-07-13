@@ -9,6 +9,14 @@ export interface SheetData {
   frames: FrameRect[];
   sheetH: number;
   maxFrameW: number;
+  /** First row (from the top) with any visible pixel, across the whole sheet. */
+  contentTop: number;
+  /** Height of the visible content band (sheets vary a lot in how much
+   *  transparent padding surrounds the character — some fill the frame,
+   *  some leave headroom for taller poses in other clips). Trimming to this
+   *  band, rather than the full frame height, is what makes different
+   *  enemies read as roughly the same on-screen size. */
+  contentH: number;
 }
 
 const sheetCache = new Map<string, Promise<SheetData>>();
@@ -47,6 +55,32 @@ export function parseSheetFrames(imageData: ImageData): FrameRect[] {
   return frames;
 }
 
+/** Find the top/height of the visible-pixel band, scanning rows across the
+ *  full sheet width (so it's one consistent trim for every frame in a clip,
+ *  not a per-frame crop that would jitter the character mid-animation). */
+export function parseVerticalContent(imageData: ImageData): { top: number; height: number } {
+  const { width: w, height: h, data } = imageData;
+  let top = -1;
+  let bottom = -1;
+
+  for (let y = 0; y < h; y++) {
+    let any = false;
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3]! > 0) {
+        any = true;
+        break;
+      }
+    }
+    if (any) {
+      if (top === -1) top = y;
+      bottom = y;
+    }
+  }
+
+  if (top === -1) return { top: 0, height: h };
+  return { top, height: bottom - top + 1 };
+}
+
 async function loadSheet(src: string): Promise<SheetData> {
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
     const el = new Image();
@@ -62,16 +96,20 @@ async function loadSheet(src: string): Promise<SheetData> {
   if (!ctx) throw new Error("Canvas unsupported");
   ctx.drawImage(img, 0, 0);
 
-  const frames = parseSheetFrames(ctx.getImageData(0, 0, canvas.width, canvas.height));
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const frames = parseSheetFrames(imageData);
   if (frames.length === 0) {
     frames.push({ x: 0, w: img.naturalWidth });
   }
+  const { top: contentTop, height: contentH } = parseVerticalContent(imageData);
 
   return {
     img,
     frames,
     sheetH: img.naturalHeight,
     maxFrameW: Math.max(...frames.map((f) => f.w)),
+    contentTop,
+    contentH,
   };
 }
 
@@ -96,7 +134,7 @@ export function paintSpriteFrame(
   if (!ctx) return;
 
   const viewW = sheet.maxFrameW * scale;
-  const viewH = sheet.sheetH * scale;
+  const viewH = sheet.contentH * scale;
   canvas.width = viewW;
   canvas.height = viewH;
 
@@ -105,5 +143,15 @@ export function paintSpriteFrame(
 
   const f = sheet.frames[frameIndex] ?? sheet.frames[0]!;
   const dx = (viewW - f.w * scale) / 2;
-  ctx.drawImage(sheet.img, f.x, 0, f.w, sheet.sheetH, dx, 0, f.w * scale, viewH);
+  ctx.drawImage(
+    sheet.img,
+    f.x,
+    sheet.contentTop,
+    f.w,
+    sheet.contentH,
+    dx,
+    0,
+    f.w * scale,
+    viewH,
+  );
 }

@@ -107,7 +107,7 @@ export function Sprite({ clip, scale = 1, playKey, onComplete }: SpriteProps) {
     <canvas
       ref={canvasRef}
       className="sprite"
-      style={{ width: sheet.maxFrameW * scale, height: sheet.sheetH * scale }}
+      style={{ width: sheet.maxFrameW * scale, height: sheet.contentH * scale }}
       aria-hidden
     />
   );
