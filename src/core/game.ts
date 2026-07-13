@@ -1,6 +1,5 @@
 import {
   ACTIONS_PER_TURN,
-  BLOCK_ACTION_AMOUNT,
   CARDS,
   DRAFT_HEAL_AMOUNT,
   ENDLESS_ENEMY_IDS,
@@ -497,8 +496,7 @@ function hasRerollableDice(actor: Actor): boolean {
   return actor.dice.some((d) => !d.held && !d.spent);
 }
 
-/** Spend one action on a reroll: reroll all of the player's non-held,
- *  non-spent dice. */
+/** Spend one reroll: reroll all of the player's non-held, non-spent dice. */
 export function reroll(state: GameState): GameState {
   const draft = clone(state);
   if (
@@ -515,30 +513,13 @@ export function reroll(state: GameState): GameState {
   return draft;
 }
 
-/** Whether the player may spend an action on a reroll right now. */
+/** Whether the player may spend a reroll right now. */
 export function canReroll(state: GameState): boolean {
   return (
     state.phase === "playerTurn" &&
     state.player.actionsRemaining > 0 &&
     hasRerollableDice(state.player)
   );
-}
-
-/** Spend one action on Block: gain BLOCK_ACTION_AMOUNT shield. */
-export function blockAction(state: GameState): GameState {
-  const draft = clone(state);
-  if (draft.phase !== "playerTurn" || draft.player.actionsRemaining <= 0) {
-    return draft;
-  }
-  draft.player.actionsRemaining--;
-  addStatus(draft.player, "block", BLOCK_ACTION_AMOUNT);
-  log(draft, `${draft.player.name} gains ${BLOCK_ACTION_AMOUNT} Block.`);
-  return draft;
-}
-
-/** Whether the player may spend an action on Block right now. */
-export function canBlockAction(state: GameState): boolean {
-  return state.phase === "playerTurn" && state.player.actionsRemaining > 0;
 }
 
 /** Whether the player may currently play `cardId`. */

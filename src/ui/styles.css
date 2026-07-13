@@ -603,22 +603,24 @@ button:disabled {
 /* ---- dice tray ---- */
 .tray {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   background: var(--panel);
   border-radius: 12px;
   padding: 12px;
 }
 .dice {
   display: flex;
-  gap: 8px;
+  gap: clamp(4px, 1.5vw, 8px);
+  min-width: 0;
 }
 .die {
   position: relative;
-  width: 48px;
-  height: 48px;
+  width: clamp(40px, 11vw, 48px);
+  height: clamp(40px, 11vw, 48px);
+  flex-shrink: 0;
   border-radius: 10px;
   border-width: 2px;
   background: #f4f1ff;
@@ -630,7 +632,7 @@ button:disabled {
   animation: die-roll 440ms cubic-bezier(0.2, 0.85, 0.3, 1.2) var(--roll-delay, 0ms) both;
 }
 .die-glyph {
-  font-size: 24px;
+  font-size: clamp(18px, 5vw, 24px);
   line-height: 1;
 }
 
@@ -801,8 +803,9 @@ button:disabled {
   gap: 8px;
 }
 .action-btn {
-  width: 56px;
-  height: 56px;
+  width: clamp(40px, 11vw, 48px);
+  height: clamp(40px, 11vw, 48px);
+  flex-shrink: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -812,15 +815,11 @@ button:disabled {
   line-height: 1;
 }
 .action-glyph {
-  font-size: 24px;
+  font-size: clamp(18px, 5vw, 24px);
 }
 .action-count {
   font-size: 11px;
   font-weight: 600;
-}
-.action-btn.block {
-  border-color: #4a8fd6;
-  color: #9ec6f0;
 }
 .end-turn {
   font-weight: 700;

@@ -140,8 +140,7 @@ export interface Actor {
   dice: Die[];
   /** Card ids this actor can play. */
   hand: string[];
-  /** Actions (reroll or block) left in the current turn (the initial roll
-   *  doesn't count). */
+  /** Rerolls left in the current turn (the initial roll doesn't count). */
   actionsRemaining: number;
   passives: Passive[];
 }

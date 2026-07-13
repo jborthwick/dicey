@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  blockAction,
-  canBlockAction,
   canPlayCard,
   canReroll,
   endTurn,
@@ -15,7 +13,6 @@ import {
   toggleHold,
 } from "./game";
 import {
-  BLOCK_ACTION_AMOUNT,
   DRAFT_HEAL_AMOUNT,
   ENDLESS_ENEMY_IDS,
   REWARD_CARD_IDS,
@@ -163,37 +160,6 @@ describe("game — reroll consumes a reroll and respects holds", () => {
     const before = s.player.actionsRemaining;
     s = reroll(s);
     expect(s.player.actionsRemaining).toBe(before);
-  });
-});
-
-describe("game — block action", () => {
-  it("grants BLOCK_ACTION_AMOUNT shield and consumes one action", () => {
-    const s = newGame(1);
-    const before = s.player.actionsRemaining;
-    const r = blockAction(s);
-    expect(r.player.statuses.block).toBe(BLOCK_ACTION_AMOUNT);
-    expect(r.player.actionsRemaining).toBe(before - 1);
-  });
-
-  it("reroll and block share the same action pool", () => {
-    let s = newGame(1);
-    const total = s.player.actionsRemaining;
-    for (let i = 0; i < total; i++) {
-      expect(canBlockAction(s)).toBe(true);
-      s = blockAction(s);
-    }
-    expect(canBlockAction(s)).toBe(false);
-    expect(canReroll(s)).toBe(false);
-    expect(s.player.statuses.block).toBe(BLOCK_ACTION_AMOUNT * total);
-  });
-
-  it("no-ops off the player's turn", () => {
-    let s = newGame(1);
-    s = { ...s, phase: "enemyTurn" };
-    expect(canBlockAction(s)).toBe(false);
-    const r = blockAction(s);
-    expect(r.player.actionsRemaining).toBe(s.player.actionsRemaining);
-    expect(r.player.statuses.block ?? 0).toBe(0);
   });
 });
 
