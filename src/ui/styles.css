@@ -225,7 +225,7 @@ button:disabled {
   justify-content: center;
   align-items: flex-end;
   /* Keep the hand (and a peek of a 2nd row) above the pinned dock. */
-  height: clamp(88px, 14vh, 140px);
+  height: clamp(168px, 28vh, 270px);
   margin: 4px 0 6px;
   overflow: hidden;
 }
@@ -248,12 +248,12 @@ button:disabled {
 /* Short phones: reclaim more room for a 2-row hand above the pinned dock. */
 @media (max-height: 740px) {
   .enemy-stage {
-    height: clamp(72px, 12vh, 112px);
+    height: clamp(140px, 24vh, 216px);
   }
 }
 @media (max-height: 640px) {
   .enemy-stage {
-    height: clamp(64px, 11vh, 96px);
+    height: clamp(124px, 22vh, 184px);
   }
   .card {
     min-height: 88px;
