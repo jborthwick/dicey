@@ -2,6 +2,7 @@ import {
   ACTIONS_PER_TURN,
   BLOCK_ACTION_AMOUNT,
   CARDS,
+  DRAFT_HEAL_AMOUNT,
   ENDLESS_ENEMY_IDS,
   MAX_CARDS_PER_TURN,
   RANDOM_DEBUFFS,
@@ -384,6 +385,33 @@ export function newRun(seed: number | string): GameState {
   return draft;
 }
 
+/** Apply the pending relic (if not already owned) and log it. */
+function applyPendingRelic(draft: GameState): void {
+  const relic = draft.run.pendingRelic;
+  if (relic && !draft.player.passives.some((p) => p.id === relic.id)) {
+    draft.player.passives.push(relic);
+    log(draft, `Gained relic: ${relic.name}.`);
+  }
+}
+
+/** Clear draft state and start the next fight against a random enemy. */
+function advanceToNextFight(draft: GameState): void {
+  draft.run.draftOffers = null;
+  draft.run.pendingRelic = null;
+  draft.run.fightIndex++;
+
+  // Runs never end on their own — every fight is a random (seeded) pick from
+  // ENDLESS_ENEMY_IDS. The only way a run ends is the player dying.
+  const enemyId = pickNextEndlessEnemy(draft);
+
+  draft.player.statuses = {};
+  draft.enemy = makeEnemy(enemyId);
+  draft.turn = 1;
+  draft.phase = "playerTurn";
+  log(draft, `Fight ${draft.run.fightIndex + 1}: vs ${draft.enemy.name}.`);
+  startTurn(draft, "player");
+}
+
 /** Pick one of the two offered reward cards and advance the run. */
 export function pickDraftCard(state: GameState, cardId: string): GameState {
   if (state.phase !== "draft") {
@@ -402,26 +430,24 @@ export function pickDraftCard(state: GameState, cardId: string): GameState {
     log(draft, `Already own ${getCard(cardId).name} — no new copy added.`);
   }
 
-  const relic = draft.run.pendingRelic;
-  if (relic && !draft.player.passives.some((p) => p.id === relic.id)) {
-    draft.player.passives.push(relic);
-    log(draft, `Gained relic: ${relic.name}.`);
+  applyPendingRelic(draft);
+  advanceToNextFight(draft);
+  return draft;
+}
+
+/** Skip the reward card and heal DRAFT_HEAL_AMOUNT HP instead; advance the run. */
+export function healInsteadOfDraft(state: GameState): GameState {
+  if (state.phase !== "draft") {
+    throw new Error("Not in draft phase");
   }
 
-  draft.run.draftOffers = null;
-  draft.run.pendingRelic = null;
-  draft.run.fightIndex++;
+  const draft = clone(state);
+  const healed = Math.min(DRAFT_HEAL_AMOUNT, draft.player.maxHp - draft.player.hp);
+  draft.player.hp += healed;
+  log(draft, `${draft.player.name} heals ${healed} HP (${draft.player.hp} HP left).`);
 
-  // Runs never end on their own — every fight is a random (seeded) pick from
-  // ENDLESS_ENEMY_IDS. The only way a run ends is the player dying.
-  const enemyId = pickNextEndlessEnemy(draft);
-
-  draft.player.statuses = {};
-  draft.enemy = makeEnemy(enemyId);
-  draft.turn = 1;
-  draft.phase = "playerTurn";
-  log(draft, `Fight ${draft.run.fightIndex + 1}: vs ${draft.enemy.name}.`);
-  startTurn(draft, "player");
+  applyPendingRelic(draft);
+  advanceToNextFight(draft);
   return draft;
 }
 

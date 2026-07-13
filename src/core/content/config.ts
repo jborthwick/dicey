@@ -9,6 +9,9 @@ export const BLOCK_ACTION_AMOUNT = 4;
 /** Safety cap on how many cards one actor may play in a single turn. */
 export const MAX_CARDS_PER_TURN = 6;
 
+/** HP restored by healing instead of drafting a reward card after a win. */
+export const DRAFT_HEAL_AMOUNT = 10;
+
 /**
  * Optional per-status stack caps, so a repeatedly-applied debuff can't run away.
  * Entangle is capped so the spider's Web Shot can't stack until your whole pool

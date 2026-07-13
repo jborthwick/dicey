@@ -5,8 +5,10 @@ import {
   canBlockAction,
   canPlayCard,
   canReroll,
+  DRAFT_HEAL_AMOUNT,
   endTurnTimeline,
   getCard,
+  healInsteadOfDraft,
   newRun,
   pickDraftCard,
   playCard,
@@ -357,6 +359,13 @@ export default function App() {
     bumpAll();
   };
 
+  const healInstead = () => {
+    setFrames([]);
+    setFrameIdx(0);
+    setState(healInsteadOfDraft(state));
+    bumpAll();
+  };
+
   const drafting = state.phase === "draft";
   const over = state.phase === "won" || state.phase === "lost";
   // No "/N" denominator — runs are endless, so there's no fixed total to show.
@@ -435,6 +444,7 @@ export default function App() {
           offers={state.run.draftOffers}
           relic={state.run.pendingRelic}
           onPick={pickCard}
+          onHeal={healInstead}
         />
       )}
 
@@ -687,10 +697,12 @@ function DraftOverlay({
   offers,
   relic,
   onPick,
+  onHeal,
 }: {
   offers: [string, string];
   relic: Passive | null;
   onPick: (id: string) => void;
+  onHeal: () => void;
 }) {
   const cards = offers.map(getCard);
   const uniqueCards =
@@ -720,6 +732,11 @@ function DraftOverlay({
             </button>
           ))}
         </div>
+        <div className="draft-or">or</div>
+        <button className="card draft-card draft-heal" onClick={onHeal}>
+          <div className="card-name">Heal Up</div>
+          <div className="card-text">Skip the card and heal {DRAFT_HEAL_AMOUNT} HP instead.</div>
+        </button>
       </div>
     </div>
   );

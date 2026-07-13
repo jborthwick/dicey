@@ -876,6 +876,17 @@ button:disabled {
   min-width: 0;
   text-align: left;
 }
+.draft-or {
+  margin: 10px 0;
+  font-size: 11px;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.draft-heal {
+  width: 100%;
+  background: #2a4a3a;
+}
 .player-relics {
   display: flex;
   flex-wrap: wrap;

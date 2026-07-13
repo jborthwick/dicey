@@ -6,6 +6,7 @@ import {
   canReroll,
   endTurn,
   endTurnTimeline,
+  healInsteadOfDraft,
   newGame,
   newRun,
   pickDraftCard,
@@ -13,7 +14,12 @@ import {
   reroll,
   toggleHold,
 } from "./game";
-import { BLOCK_ACTION_AMOUNT, ENDLESS_ENEMY_IDS, REWARD_CARD_IDS } from "./content";
+import {
+  BLOCK_ACTION_AMOUNT,
+  DRAFT_HEAL_AMOUNT,
+  ENDLESS_ENEMY_IDS,
+  REWARD_CARD_IDS,
+} from "./content";
 import { matchRequirement } from "./dice";
 import { nextInt, seedRng } from "./rng";
 import type { Die, GameState } from "./types";
@@ -311,6 +317,43 @@ describe("game — run progression", () => {
     expect(ENDLESS_ENEMY_IDS as readonly string[]).toContain(s.enemy.id);
     expect(s.player.hand).toContain(pick);
     expect(s.player.passives.some((p) => p.id === relicId)).toBe(true);
+  });
+
+  it("healInsteadOfDraft heals HP, skips the card, and starts the next fight", () => {
+    let s = newRun(99);
+    let guard = 0;
+    while (s.phase === "playerTurn" && guard++ < 80) {
+      while (canReroll(s) && !s.player.hand.some((c) => canPlayCard(s, c))) {
+        s = reroll(s);
+      }
+      const card = s.player.hand.find((c) => canPlayCard(s, c));
+      s = card ? playCard(s, card) : endTurn(s);
+    }
+    const handBefore = [...s.player.hand];
+    const hpBefore = s.player.hp;
+    const relicId = s.run.pendingRelic?.id;
+    s = healInsteadOfDraft(s);
+    expect(s.phase).toBe("playerTurn");
+    expect(s.run.fightIndex).toBe(1);
+    expect(ENDLESS_ENEMY_IDS as readonly string[]).toContain(s.enemy.id);
+    expect(s.player.hand).toEqual(handBefore);
+    expect(s.player.hp).toBe(Math.min(s.player.maxHp, hpBefore + DRAFT_HEAL_AMOUNT));
+    expect(s.player.passives.some((p) => p.id === relicId)).toBe(true);
+  });
+
+  it("healInsteadOfDraft never heals past maxHp", () => {
+    let s = newRun(99);
+    let guard = 0;
+    while (s.phase === "playerTurn" && guard++ < 80) {
+      while (canReroll(s) && !s.player.hand.some((c) => canPlayCard(s, c))) {
+        s = reroll(s);
+      }
+      const card = s.player.hand.find((c) => canPlayCard(s, c));
+      s = card ? playCard(s, card) : endTurn(s);
+    }
+    s = { ...s, player: { ...s.player, hp: s.player.maxHp } };
+    s = healInsteadOfDraft(s);
+    expect(s.player.hp).toBe(s.player.maxHp);
   });
 
   /** Auto-win every fight and auto-pick the first draft offer each time,
