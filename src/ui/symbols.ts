@@ -18,10 +18,30 @@ export const ELEMENT_COLOR: Record<string, string> = {
   special: "#7a4fa8",
 };
 
-export const STATUS_UI: Record<string, { glyph: string; label: string }> = {
-  poison: { glyph: "🧪", label: "Poison" },
-  silence: { glyph: "💀", label: "Silence" },
-  entangle: { glyph: "🌀", label: "Entangle" },
-  weaken: { glyph: "🔻", label: "Weaken" },
-  block: { glyph: "🛡️", label: "Block" },
+export const STATUS_UI: Record<string, { glyph: string; label: string; text: string }> = {
+  poison: {
+    glyph: "🧪",
+    label: "Poison",
+    text: "Deals 1 damage at the start of the afflicted's turn, then decreases by 1.",
+  },
+  silence: {
+    glyph: "💀",
+    label: "Silence",
+    text: "The next card played fizzles — its dice are spent but nothing happens. Decreases by 1 each turn.",
+  },
+  entangle: {
+    glyph: "🌀",
+    label: "Entangle",
+    text: "Locks that many dice from being rerolled or held this turn. Decreases by 1 each turn.",
+  },
+  weaken: {
+    glyph: "🔻",
+    label: "Weaken",
+    text: "Reduces outgoing damage while active. Decreases by 1 each turn.",
+  },
+  block: {
+    glyph: "🛡️",
+    label: "Block",
+    text: "Absorbs incoming damage until used up. Clears at the start of the owner's turn.",
+  },
 };

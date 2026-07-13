@@ -159,11 +159,16 @@ button:disabled {
   border-color: #9a6ab0;
   outline: none;
 }
-.relic-tooltip {
+/* Shared tap-to-open tooltip (relics + statuses). Centered above its anchor
+   by default; --tip-shift (set in JS after measuring against the viewport)
+   nudges the box back on-screen when the anchor sits near a screen edge,
+   while the arrow (::after) counter-shifts so it still points at the anchor
+   instead of drifting off with the box. */
+.tap-tooltip {
   position: absolute;
   bottom: calc(100% + 8px);
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(calc(-50% + var(--tip-shift, 0px)));
   z-index: 120;
   width: max-content;
   max-width: min(240px, 70vw);
@@ -178,14 +183,26 @@ button:disabled {
   text-align: center;
   pointer-events: none;
 }
-.relic-tooltip::after {
+.tap-tooltip::after {
   content: "";
   position: absolute;
   top: 100%;
-  left: 50%;
+  left: calc(50% - var(--tip-shift, 0px));
   transform: translateX(-50%);
   border: 6px solid transparent;
   border-top-color: #8a6aa0;
+}
+/* Flipped when there's no room above the anchor (e.g. enemy badges sitting
+   right under the topbar) — same box, mirrored to the other side. */
+.tap-tooltip.below {
+  bottom: auto;
+  top: calc(100% + 8px);
+}
+.tap-tooltip.below::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: #8a6aa0;
 }
 .draft-relic {
   display: flex;
@@ -499,10 +516,26 @@ button:disabled {
   font-size: 13px;
   font-weight: 500;
 }
+.status-badge-wrap {
+  position: relative;
+  display: inline-flex;
+}
 .status {
+  font: inherit;
+  font-weight: 500;
+  color: var(--ink);
   background: #00000030;
+  border: 1px solid transparent;
   border-radius: 6px;
   padding: 1px 5px;
+  cursor: pointer;
+}
+.status:hover,
+.status:focus-visible,
+.status.open {
+  background: #00000055;
+  border-color: #6b6b8f;
+  outline: none;
 }
 
 /* Wraps the hand + log so a single overlay can dim both while the enemy acts,

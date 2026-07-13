@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import {
   BLOCK_ACTION_AMOUNT,
   blockAction,
@@ -527,9 +534,38 @@ function FlyingCard({
   );
 }
 
-function RelicBadge({ passive }: { passive: Passive }) {
+/**
+ * Shared tap-to-open behavior for a badge + tooltip: toggles on click, closes
+ * on an outside tap, and — since a badge can sit near any edge of a narrow
+ * phone screen (enemy relics/statuses in particular sit right under the
+ * topbar) — nudges the tooltip back on-screen after it renders instead of
+ * letting it get clipped or run off the viewport. Horizontal overflow is
+ * fixed by shifting sideways (`--tip-shift`); vertical overflow (no room
+ * above the anchor) flips the tooltip to render below instead.
+ *
+ * The boundary to stay inside isn't the browser viewport — `.fight-scroll`
+ * clips horizontally (`overflow-x: hidden`) and is itself inset from the
+ * viewport edge, so a tooltip that merely fit *within the window* could
+ * still get silently clipped by that ancestor. Walk up to the nearest
+ * clipping ancestor and measure against that instead.
+ */
+function nearestClippingRect(el: Element): DOMRect {
+  let node: Element | null = el.parentElement;
+  while (node && node !== document.body) {
+    const style = getComputedStyle(node);
+    if (/(hidden|auto|scroll|clip)/.test(style.overflowX + style.overflowY)) {
+      return node.getBoundingClientRect();
+    }
+    node = node.parentElement;
+  }
+  return new DOMRect(0, 0, window.innerWidth, window.innerHeight);
+}
+
+function useTapTooltip() {
   const [open, setOpen] = useState(false);
+  const [placement, setPlacement] = useState<"top" | "bottom">("top");
   const wrapRef = useRef<HTMLDivElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -541,6 +577,39 @@ function RelicBadge({ passive }: { passive: Passive }) {
     document.addEventListener("pointerdown", close);
     return () => document.removeEventListener("pointerdown", close);
   }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPlacement("top");
+      return;
+    }
+    if (!tipRef.current) return;
+    const el = tipRef.current;
+    const EDGE_PADDING = 8;
+    el.style.setProperty("--tip-shift", "0px");
+    const rect = el.getBoundingClientRect();
+    const boundary = nearestClippingRect(el);
+
+    // Not enough room above the anchor — flip below and re-measure next pass.
+    if (placement === "top" && rect.top < boundary.top + EDGE_PADDING) {
+      setPlacement("bottom");
+      return;
+    }
+
+    let shift = 0;
+    if (rect.left < boundary.left + EDGE_PADDING) {
+      shift = boundary.left + EDGE_PADDING - rect.left;
+    } else if (rect.right > boundary.right - EDGE_PADDING) {
+      shift = boundary.right - EDGE_PADDING - rect.right;
+    }
+    if (shift !== 0) el.style.setProperty("--tip-shift", `${shift}px`);
+  }, [open, placement]);
+
+  return { open, setOpen, wrapRef, tipRef, placement };
+}
+
+function RelicBadge({ passive }: { passive: Passive }) {
+  const { open, setOpen, wrapRef, tipRef, placement } = useTapTooltip();
 
   return (
     <div className="relic-badge-wrap" ref={wrapRef}>
@@ -554,7 +623,12 @@ function RelicBadge({ passive }: { passive: Passive }) {
         ✦ {passive.name}
       </button>
       {open && (
-        <div id={`relic-tip-${passive.id}`} className="relic-tooltip" role="tooltip">
+        <div
+          ref={tipRef}
+          id={`relic-tip-${passive.id}`}
+          className={`tap-tooltip${placement === "bottom" ? " below" : ""}`}
+          role="tooltip"
+        >
           {passive.text}
         </div>
       )}
@@ -991,15 +1065,39 @@ function StatusRow({ statuses }: { statuses: Actor["statuses"] }) {
   if (entries.length === 0) return null;
   return (
     <span className="statuses">
-      {entries.map(([k, v]) => {
-        const ui = STATUS_UI[k];
-        return (
-          <span key={k} className="status" title={ui?.label ?? k}>
-            {ui?.glyph ?? "?"}
-            {v}
-          </span>
-        );
-      })}
+      {entries.map(([k, v]) => (
+        <StatusBadge key={k} id={k} stacks={v!} />
+      ))}
+    </span>
+  );
+}
+
+function StatusBadge({ id, stacks }: { id: string; stacks: number }) {
+  const { open, setOpen, wrapRef, tipRef, placement } = useTapTooltip();
+  const ui = STATUS_UI[id];
+
+  return (
+    <span className="status-badge-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className={`status${open ? " open" : ""}`}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-describedby={open ? `status-tip-${id}` : undefined}
+      >
+        {ui?.glyph ?? "?"}
+        {stacks}
+      </button>
+      {open && (
+        <div
+          ref={tipRef}
+          id={`status-tip-${id}`}
+          className={`tap-tooltip${placement === "bottom" ? " below" : ""}`}
+          role="tooltip"
+        >
+          <strong>{ui?.label ?? id}</strong> — {ui?.text ?? "Unknown status."}
+        </div>
+      )}
     </span>
   );
 }
