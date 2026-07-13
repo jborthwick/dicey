@@ -5,7 +5,6 @@ import {
   RANDOM_DEBUFFS,
   REWARD_CARD_IDS,
   REROLLS_PER_TURN,
-  STARTER_ENEMY_IDS,
   STATUS_CAPS,
   getCard,
   getDie,
@@ -364,12 +363,12 @@ export function newGame(
   return draft;
 }
 
-/** Start a full multi-fight run against the starter enemy pool. */
+/** Start a full multi-fight run against a random enemy each fight. */
 export function newRun(seed: number | string): GameState {
-  const enemyId = STARTER_ENEMY_IDS[0]!;
+  const [enemyId, rng] = pick(seedRng(seed), ENDLESS_ENEMY_IDS);
   const base: GameState = {
     seed,
-    rng: seedRng(seed),
+    rng,
     turn: 1,
     phase: "playerTurn",
     player: makePlayer(),
@@ -412,13 +411,9 @@ export function pickDraftCard(state: GameState, cardId: string): GameState {
   draft.run.pendingRelic = null;
   draft.run.fightIndex++;
 
-  // Runs never end on their own — the fixed opener (STARTER_ENEMY_IDS) plays
-  // out in order, then every fight after that is a random (seeded) pick from
+  // Runs never end on their own — every fight is a random (seeded) pick from
   // ENDLESS_ENEMY_IDS. The only way a run ends is the player dying.
-  const enemyId =
-    draft.run.fightIndex < STARTER_ENEMY_IDS.length
-      ? STARTER_ENEMY_IDS[draft.run.fightIndex]!
-      : pickNextEndlessEnemy(draft);
+  const enemyId = pickNextEndlessEnemy(draft);
 
   draft.player.statuses = {};
   draft.enemy = makeEnemy(enemyId);

@@ -12,7 +12,6 @@ export {
   REROLLS_PER_TURN,
   MAX_CARDS_PER_TURN,
   STARTER_CARD_IDS,
-  STARTER_ENEMY_IDS,
   makeEnemy,
   makePlayer,
   makeSpider,

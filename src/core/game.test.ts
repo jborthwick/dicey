@@ -11,7 +11,7 @@ import {
   reroll,
   toggleHold,
 } from "./game";
-import { ENDLESS_ENEMY_IDS, REWARD_CARD_IDS, STARTER_ENEMY_IDS } from "./content";
+import { ENDLESS_ENEMY_IDS, REWARD_CARD_IDS } from "./content";
 import { matchRequirement } from "./dice";
 import { nextInt, seedRng } from "./rng";
 import type { Die, GameState } from "./types";
@@ -257,7 +257,7 @@ describe("game — run progression", () => {
     }
     expect(s.phase).toBe("draft");
     expect(s.run.draftOffers).toHaveLength(2);
-    expect(s.run.pendingRelic?.name).toBe("Tough Cap");
+    expect(s.run.pendingRelic).toBeTruthy();
   });
 
   it("pickDraftCard adds the card, relic, and starts the next fight", () => {
@@ -271,12 +271,13 @@ describe("game — run progression", () => {
       s = card ? playCard(s, card) : endTurn(s);
     }
     const [pick] = s.run.draftOffers!;
+    const relicId = s.run.pendingRelic?.id;
     s = pickDraftCard(s, pick);
     expect(s.phase).toBe("playerTurn");
     expect(s.run.fightIndex).toBe(1);
-    expect(s.enemy.name).toBe("Bloom Sprite");
+    expect(ENDLESS_ENEMY_IDS as readonly string[]).toContain(s.enemy.id);
     expect(s.player.hand).toContain(pick);
-    expect(s.player.passives.some((p) => p.id === "tough-cap")).toBe(true);
+    expect(s.player.passives.some((p) => p.id === relicId)).toBe(true);
   });
 
   /** Auto-win every fight and auto-pick the first draft offer each time,
@@ -302,17 +303,16 @@ describe("game — run progression", () => {
   }
 
   it("never wins — runs only end when the player dies", () => {
-    // Grind well past the fixed opener; regardless of outcome, "won"/"runWon"
+    // Grind well past several fights; regardless of outcome, "won"/"runWon"
     // must never appear as a terminal phase for a run.enabled game.
     const s = grindRun(11, 30);
     expect(["playerTurn", "draft", "lost"]).toContain(s.phase);
   });
 
-  it("cycles random enemies (seeded) once past STARTER_ENEMY_IDS", () => {
-    const s = grindRun(11, STARTER_ENEMY_IDS.length + 3);
-    // Enough fights happened to be in the endless phase, or the player died
-    // trying — either way, nothing crashed getting here.
-    expect(s.run.fightIndex).toBeGreaterThanOrEqual(STARTER_ENEMY_IDS.length);
+  it("cycles random enemies (seeded) every fight", () => {
+    const s = grindRun(11, 5);
+    // Enough fights happened, or the player died trying — either way,
+    // nothing crashed getting here, and every enemy comes from the pool.
     if (s.phase !== "lost") {
       expect(ENDLESS_ENEMY_IDS as readonly string[]).toContain(s.enemy.id);
     }

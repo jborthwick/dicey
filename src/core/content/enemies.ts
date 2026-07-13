@@ -26,11 +26,8 @@ export const ENEMIES: Record<string, ActorDef> = {
     handIds: ["breeze", "mewl"],
     passiveIds: ["sonic-screech"],
   },
-  // Not in STARTER_ENEMY_IDS (the fixed opening) — these appear only once a
-  // run has gone past the opener, via random selection from ENDLESS_ENEMY_IDS
-  // below. poisonous-spider is the one exception: no sprite yet (still just a
-  // .gitkeep), so it's deliberately left out of ENDLESS_ENEMY_IDS too — add it
-  // to that list once it has art.
+  // poisonous-spider has no sprite yet (still just a .gitkeep), so it's
+  // deliberately left out of ENDLESS_ENEMY_IDS below — add it once it has art.
   "poisonous-spider": {
     id: "poisonous-spider",
     name: "Poisonous Spider",
@@ -105,14 +102,9 @@ export const ENEMIES: Record<string, ActorDef> = {
   },
 };
 
-/** Fixed opening order for a run. Fight 1 defaults to mushroom. */
-export const STARTER_ENEMY_IDS = ["mushroom", "bloom-sprite", "bat"] as const;
-
-export type StarterEnemyId = (typeof STARTER_ENEMY_IDS)[number];
-
 /**
- * Every enemy with a real sprite — eligible for random selection once a run
- * runs past `STARTER_ENEMY_IDS` (see `pickDraftCard` in game.ts). Deliberately
+ * Every enemy with a real sprite — eligible for random selection for every
+ * fight of a run (see `newRun`/`pickDraftCard` in game.ts). Deliberately
  * explicit (not derived from `ENEMIES`) so a newly-added-but-not-yet-sprited
  * enemy (like `poisonous-spider`) never gets picked and hits the missing-
  * sprite placeholder mid-run. Add an id here once its sprite is committed.
@@ -131,7 +123,7 @@ export const ENDLESS_ENEMY_IDS = [
   "kobold-warrior",
 ] as const;
 
-export function makeEnemy(id: StarterEnemyId | string): Actor {
+export function makeEnemy(id: string): Actor {
   const def = ENEMIES[id];
   if (!def) throw new Error(`Unknown enemy: ${id}`);
   return hydrateActor(def);

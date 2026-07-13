@@ -351,8 +351,7 @@ export default function App() {
 
   const drafting = state.phase === "draft";
   const over = state.phase === "won" || state.phase === "lost";
-  // No "/N" denominator — runs are endless past the fixed opener, so there's
-  // no fixed total to show once fightIndex >= STARTER_ENEMY_IDS.length.
+  // No "/N" denominator — runs are endless, so there's no fixed total to show.
   const fightLabel = state.run.enabled ? `Fight ${state.run.fightIndex + 1}` : null;
 
   const canAct = state.phase === "playerTurn";

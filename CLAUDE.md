@@ -102,12 +102,11 @@ Same seed ⇒ identical run. Determinism is a hard invariant; there's a test for
   and regenerate any one content file wholesale — don't reintroduce a
   switch-statement factory or inline the def+hydration back together.
   `content/index.ts` is a barrel; `"./content"` resolves there automatically.
-- **Run progression is endless.** `newRun(seed)` plays `STARTER_ENEMY_IDS` in
-  fixed order first (the opener), then — once `fightIndex >= STARTER_ENEMY_IDS.
-  length` — every next enemy is a seeded random pick from `ENDLESS_ENEMY_IDS`
-  (every enemy with a real sprite; repeats allowed, that's the "cycle"). A run
-  never wins on its own; the only terminal state is `lost`. There is no
-  `runWon` phase — it was removed as genuinely unreachable when this shipped,
+- **Run progression is endless.** `newRun(seed)` picks fight 1 the same way as
+  every fight after it: a seeded random pick from `ENDLESS_ENEMY_IDS` (every
+  enemy with a real sprite; repeats allowed, that's the "cycle"). There is no
+  fixed opener. A run never wins on its own; the only terminal state is
+  `lost`. There is no `runWon` phase — it was removed as genuinely unreachable when this shipped,
   don't reintroduce a fixed run length without also reintroducing that phase
   everywhere it was wired (types.ts, persist.ts, App.tsx, styles.css all
   referenced it once). On kill, phase becomes `draft` with two offers from

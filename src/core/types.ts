@@ -178,7 +178,7 @@ export type Phase = "playerTurn" | "enemyTurn" | "draft" | "won" | "lost";
 /** Multi-fight run metadata. Single-encounter mode sets `enabled: false`. */
 export interface RunProgress {
   enabled: boolean;
-  /** Index of the current fight in `STARTER_ENEMY_IDS`. */
+  /** Zero-based index of the current fight (0 = fight 1). */
   fightIndex: number;
   /** Two reward cards offered after a fight win; null outside draft. */
   draftOffers: [string, string] | null;
