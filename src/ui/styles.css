@@ -1150,7 +1150,7 @@ button:disabled {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .confirm-panel {

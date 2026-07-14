@@ -1012,13 +1012,6 @@ function PlayerStrip({
           {player.name}
           <StatusRow statuses={player.statuses} />
         </div>
-        {player.passives.length > 0 && (
-          <div className="player-relics">
-            {player.passives.map((p) => (
-              <RelicBadge key={p.id} passive={p} />
-            ))}
-          </div>
-        )}
       </div>
       <div className="player-strip-actions">
         <div className="dice">
@@ -1054,6 +1047,13 @@ function PlayerStrip({
         </div>
       </div>
       <HpBar cur={player.hp} max={player.maxHp} hit={hit} />
+      {player.passives.length > 0 && (
+        <div className="player-relics">
+          {player.passives.map((p) => (
+            <RelicBadge key={p.id} passive={p} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
