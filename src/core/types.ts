@@ -185,6 +185,8 @@ export interface RunProgress {
   draftOffers: [string, string] | null;
   /** Relic from the enemy just defeated; applied when a draft card is picked. */
   pendingRelic: Passive | null;
+  /** Draft offer chosen while the hand is full; await a replace target. */
+  pendingDraftPick: string | null;
 }
 
 export interface GameState {

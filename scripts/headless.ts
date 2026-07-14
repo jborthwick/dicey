@@ -19,6 +19,7 @@ import {
   newRun,
   pickDraftCard,
   playCard,
+  replaceDraftCard,
   reroll,
   symbolOf,
   type GameState,
@@ -63,7 +64,13 @@ function diceLine(s: GameState): string {
 function autoPickDraft(s: GameState): GameState {
   const [first] = s.run.draftOffers ?? [];
   if (!first) throw new Error("Draft with no offers");
-  return pickDraftCard(s, first);
+  let next = pickDraftCard(s, first);
+  if (next.run.pendingDraftPick) {
+    const drop = next.player.hand[0];
+    if (!drop) throw new Error("Full hand draft with empty hand");
+    next = replaceDraftCard(next, drop);
+  }
+  return next;
 }
 
 function run(): void {

@@ -3,6 +3,7 @@ import {
   CARDS,
   DRAFT_HEAL_AMOUNT,
   ENDLESS_ENEMY_IDS,
+  HAND_SIZE,
   MAX_CARDS_PER_TURN,
   RANDOM_DEBUFFS,
   REWARD_CARD_IDS,
@@ -343,6 +344,7 @@ const SINGLE_ENCOUNTER_RUN: GameState["run"] = {
   fightIndex: 0,
   draftOffers: null,
   pendingRelic: null,
+  pendingDraftPick: null,
 };
 
 const EMPTY_RUN: GameState["run"] = {
@@ -350,6 +352,7 @@ const EMPTY_RUN: GameState["run"] = {
   fightIndex: 0,
   draftOffers: null,
   pendingRelic: null,
+  pendingDraftPick: null,
 };
 
 /** Create a single encounter (tests/headless). Win ends the fight; no draft. */
@@ -406,6 +409,7 @@ function applyPendingRelic(draft: GameState): void {
 function advanceToNextFight(draft: GameState): void {
   draft.run.draftOffers = null;
   draft.run.pendingRelic = null;
+  draft.run.pendingDraftPick = null;
   draft.run.fightIndex++;
 
   // Runs never end on their own — every fight is a random (seeded) pick from
@@ -420,10 +424,17 @@ function advanceToNextFight(draft: GameState): void {
   startTurn(draft, "player");
 }
 
-/** Pick one of the two offered reward cards and advance the run. */
+/**
+ * Pick one of the two offered reward cards. If the hand is already at
+ * {@link HAND_SIZE} and the card is new, parks it in `pendingDraftPick` so the
+ * player can choose which owned card to replace via {@link replaceDraftCard}.
+ */
 export function pickDraftCard(state: GameState, cardId: string): GameState {
   if (state.phase !== "draft") {
     throw new Error("Not in draft phase");
+  }
+  if (state.run.pendingDraftPick) {
+    throw new Error("Already choosing a card to replace");
   }
   const offers = state.run.draftOffers;
   if (!offers?.includes(cardId)) {
@@ -431,13 +442,63 @@ export function pickDraftCard(state: GameState, cardId: string): GameState {
   }
 
   const draft = clone(state);
-  if (!draft.player.hand.includes(cardId)) {
-    draft.player.hand.push(cardId);
-    log(draft, `Added ${getCard(cardId).name} to your deck.`);
-  } else {
+  if (draft.player.hand.includes(cardId)) {
     log(draft, `Already own ${getCard(cardId).name} — no new copy added.`);
+    applyPendingRelic(draft);
+    advanceToNextFight(draft);
+    return draft;
   }
 
+  if (draft.player.hand.length >= HAND_SIZE) {
+    draft.run.pendingDraftPick = cardId;
+    log(
+      draft,
+      `Hand full — choose a card to replace with ${getCard(cardId).name}.`,
+    );
+    return draft;
+  }
+
+  draft.player.hand.push(cardId);
+  log(draft, `Added ${getCard(cardId).name} to your deck.`);
+  applyPendingRelic(draft);
+  advanceToNextFight(draft);
+  return draft;
+}
+
+/** Clear a pending full-hand draft pick and return to the offer choice. */
+export function cancelDraftPick(state: GameState): GameState {
+  if (state.phase !== "draft" || !state.run.pendingDraftPick) {
+    return clone(state);
+  }
+  const draft = clone(state);
+  draft.run.pendingDraftPick = null;
+  return draft;
+}
+
+/**
+ * Finish a full-hand draft: drop `removeCardId` from the hand and add the
+ * pending offer, then apply the relic and advance.
+ */
+export function replaceDraftCard(state: GameState, removeCardId: string): GameState {
+  if (state.phase !== "draft") {
+    throw new Error("Not in draft phase");
+  }
+  const addId = state.run.pendingDraftPick;
+  if (!addId) {
+    throw new Error("No pending draft card to replace with");
+  }
+  if (!state.player.hand.includes(removeCardId)) {
+    throw new Error(`Cannot replace card not in hand: ${removeCardId}`);
+  }
+
+  const draft = clone(state);
+  draft.player.hand = draft.player.hand.filter((id) => id !== removeCardId);
+  draft.player.hand.push(addId);
+  log(
+    draft,
+    `Replaced ${getCard(removeCardId).name} with ${getCard(addId).name}.`,
+  );
+  draft.run.pendingDraftPick = null;
   applyPendingRelic(draft);
   advanceToNextFight(draft);
   return draft;
@@ -447,6 +508,9 @@ export function pickDraftCard(state: GameState, cardId: string): GameState {
 export function healInsteadOfDraft(state: GameState): GameState {
   if (state.phase !== "draft") {
     throw new Error("Not in draft phase");
+  }
+  if (state.run.pendingDraftPick) {
+    throw new Error("Finish or cancel the replace choice first");
   }
 
   const draft = clone(state);

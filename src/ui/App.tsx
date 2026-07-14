@@ -9,13 +9,16 @@ import {
 import {
   canPlayCard,
   canReroll,
+  cancelDraftPick,
   DRAFT_HEAL_AMOUNT,
   endTurnTimeline,
   getCard,
+  HAND_SIZE,
   healInsteadOfDraft,
   newRun,
   pickDraftCard,
   playCard,
+  replaceDraftCard,
   reroll,
   symbolOf,
   toggleHold,
@@ -37,10 +40,13 @@ import { ELEMENT_COLOR, STATUS_UI, SYMBOL_UI } from "./symbols";
 const SHUFFLE_MS = 280; // how long a rolling die flickers before settling
 const FLICKER_MS = 50; // interval between flicker frames
 const STAGGER_MS = 45; // per-die delay so a multi-die roll cascades
-const RESOLVE_DELAY = 1000; // pause between beats of the enemy's turn
+const RESOLVE_DELAY = 1350; // pause between beats of the enemy's turn
 const PROJECTILE_MS = 240; // flight time of a played-card projectile
 const FLOATER_MS = 650; // lifetime of a floating damage number
 const POP_MS = 380; // glow-pop duration when a die is spent on a card
+
+/** Fixed hand size the fight layout budgets for (3×2 grid). */
+const HAND_SLOTS = HAND_SIZE;
 
 /** Which side's HP bar a card's effect is aimed at, from the actor's frame:
  *  offensive/debuff cards fly at the opponent, self-buffs at the caster. */
@@ -362,6 +368,17 @@ export default function App() {
     bumpAll();
   };
 
+  const replaceCard = (removeId: string) => {
+    setFrames([]);
+    setFrameIdx(0);
+    setState(replaceDraftCard(state, removeId));
+    bumpAll();
+  };
+
+  const cancelPick = () => {
+    setState(cancelDraftPick(state));
+  };
+
   const healInstead = () => {
     setFrames([]);
     setFrameIdx(0);
@@ -403,36 +420,36 @@ export default function App() {
 
       {/* Fixed fight layout: everything fits in the viewport — no scroll region. */}
       <div className="fight">
-        <EnemyPanel
-          enemy={state.enemy}
-          acting={state.phase === "enemyTurn"}
-          enemyNonce={enemyNonce}
-          playingCardId={enemyPlayingCard}
-          hit={hit.enemy}
-        />
+        {/* Enemy + cards share one acting highlight (top ~2/3 of the fight). */}
+        <div className={`combat-stage${resolving ? " acting" : ""}`}>
+          <EnemyPanel
+            enemy={state.enemy}
+            acting={resolving}
+            enemyNonce={enemyNonce}
+            playingCardId={enemyPlayingCard}
+            hit={hit.enemy}
+            canEndTurn={canAct && !resolving}
+            endTurnNudge={endTurnNudge}
+            onEndTurn={doEndTurn}
+            onSkip={skipResolve}
+          />
 
-        {over && (
-          <div className={`banner ${state.phase}`}>
-            {state.phase === "won" ? "Victory!" : "Defeated…"}{" "}
-            <button onClick={restart}>Play again</button>
+          {/* Fixed card slot: player hand, or enemy hand during their turn (1:1 swap). */}
+          <div className="player-zone">
+            {resolving ? (
+              <EnemyCardGrid enemy={state.enemy} playingCardId={enemyPlayingCard} />
+            ) : (
+              <CardGrid state={state} onPlay={playPlayerCard} disabled={drafting || over} />
+            )}
           </div>
-        )}
-
-        <div className="player-zone">
-          <CardGrid state={state} onPlay={playPlayerCard} disabled={drafting || over} />
-          {resolving && <div className="dim-overlay" aria-hidden="true" />}
         </div>
 
         <PlayerStrip
           state={state}
           rollNonce={rollNonce}
-          resolving={resolving}
-          endTurnNudge={endTurnNudge}
           hit={hit.player}
           onToggle={(i) => setState(toggleHold(state, i))}
           onReroll={doReroll}
-          onSkip={skipResolve}
-          onEndTurn={doEndTurn}
         />
       </div>
 
@@ -440,8 +457,19 @@ export default function App() {
         <DraftOverlay
           offers={state.run.draftOffers}
           relic={state.run.pendingRelic}
+          pendingPick={state.run.pendingDraftPick}
+          hand={state.player.hand}
           onPick={pickCard}
+          onReplace={replaceCard}
+          onCancelPick={cancelPick}
           onHeal={healInstead}
+        />
+      )}
+
+      {over && (
+        <GameOverOverlay
+          phase={state.phase === "won" ? "won" : "lost"}
+          onPlayAgain={restart}
         />
       )}
 
@@ -638,15 +666,23 @@ function EnemyPanel({
   enemyNonce,
   playingCardId,
   hit,
+  canEndTurn,
+  endTurnNudge,
+  onEndTurn,
+  onSkip,
 }: {
   enemy: Actor;
   acting: boolean;
   enemyNonce: number[];
   playingCardId: string | null;
   hit: { n: number; v: string };
+  canEndTurn: boolean;
+  endTurnNudge: boolean;
+  onEndTurn: () => void;
+  onSkip: () => void;
 }) {
   return (
-    <section className={`enemy${acting ? " acting" : ""}`}>
+    <section className="enemy">
       <div className="enemy-name">
         <span className="enemy-title">
           {enemy.name}
@@ -668,21 +704,34 @@ function EnemyPanel({
         />
       </div>
       <HpBar cur={enemy.hp} max={enemy.maxHp} hit={hit} />
-      {acting && (
-        <>
-          <EnemyDice enemy={enemy} enemyNonce={enemyNonce} />
-          <EnemyHand enemy={enemy} playingCardId={playingCardId} />
-        </>
-      )}
+      {/* Fixed-height slot: End Turn on the player's turn, enemy dice on theirs. */}
+      <div className="enemy-action-slot">
+        {acting ? (
+          <>
+            <EnemyDice enemy={enemy} enemyNonce={enemyNonce} />
+            <button className="skip" onClick={onSkip}>
+              Skip ⏭
+            </button>
+          </>
+        ) : (
+          <button
+            className={`end-turn end-turn-bar${endTurnNudge ? " nudge" : ""}`}
+            disabled={!canEndTurn}
+            onClick={onEndTurn}
+          >
+            End Turn →
+          </button>
+        )}
+      </div>
     </section>
   );
 }
 
 /**
- * The spider's hand, shown during its turn. Cards it can currently pay for read
- * brighter; the one it's playing this beat lights up. Read-only.
+ * Enemy hand in the same 3×2 card grid the player uses — a 1:1 swap so the
+ * layout doesn't grow when the enemy acts. Read-only.
  */
-function EnemyHand({
+function EnemyCardGrid({
   enemy,
   playingCardId,
 }: {
@@ -690,12 +739,17 @@ function EnemyHand({
   playingCardId: string | null;
 }) {
   const cards = enemy.hand.map(getCard);
+  const slots = Array.from({ length: HAND_SLOTS }, (_, i) => cards[i] ?? null);
   return (
-    <div className="enemy-hand">
-      {cards.map((card) => {
+    <section className="cards enemy-cards">
+      {slots.map((card, i) => {
+        if (!card) {
+          return <div key={`empty-${i}`} className="card card-empty" aria-hidden />;
+        }
         const affordable = matchRequirement(enemy.dice, card.requirement) !== null;
         const playing = card.id === playingCardId;
         const cls = [
+          "card",
           "enemy-card",
           affordable ? "affordable" : "",
           playing ? "playing" : "",
@@ -709,18 +763,19 @@ function EnemyHand({
             style={{ background: ELEMENT_COLOR[card.element] }}
             title={card.text}
           >
-            <span className="ec-name">{card.name}</span>
-            <span className="ec-cost">
+            <div className="card-name">{card.name}</div>
+            <div className="card-cost">
               <CostView card={card} />
-            </span>
+            </div>
+            <div className="card-text">{card.text}</div>
           </div>
         );
       })}
-    </div>
+    </section>
   );
 }
 
-/** Read-only display of the spider's dice during its turn. */
+/** Read-only display of the enemy's dice (shown in the End Turn slot). */
 function EnemyDice({ enemy, enemyNonce }: { enemy: Actor; enemyNonce: number[] }) {
   let rollOrder = 0;
   return (
@@ -770,17 +825,73 @@ function EnemyDie({ die, delay }: { die: Die; delay: number }) {
 function DraftOverlay({
   offers,
   relic,
+  pendingPick,
+  hand,
   onPick,
+  onReplace,
+  onCancelPick,
   onHeal,
 }: {
   offers: [string, string];
   relic: Passive | null;
+  pendingPick: string | null;
+  hand: string[];
   onPick: (id: string) => void;
+  onReplace: (removeId: string) => void;
+  onCancelPick: () => void;
   onHeal: () => void;
 }) {
   const cards = offers.map(getCard);
   const uniqueCards =
     offers[0] === offers[1] ? [cards[0]!] : [cards[0]!, cards[1]!];
+  const replacing = pendingPick ? getCard(pendingPick) : null;
+
+  if (replacing) {
+    return (
+      <div className="draft-overlay">
+        <div className="draft-panel draft-replace-panel">
+          <h2>Choose a card to replace</h2>
+          <p className="draft-replace-lead">
+            Hand is full ({HAND_SIZE}). Pick one card to drop for{" "}
+            <strong>{replacing.name}</strong>.
+          </p>
+          <div
+            className="card draft-card draft-incoming"
+            style={{ background: ELEMENT_COLOR[replacing.element] }}
+          >
+            <div className="card-name">{replacing.name}</div>
+            <div className="card-cost">
+              <CostView card={replacing} />
+            </div>
+            <div className="card-text">{replacing.text}</div>
+          </div>
+          <div className="draft-replace-hand">
+            {hand.map((id) => {
+              const card = getCard(id);
+              return (
+                <button
+                  key={id}
+                  className="card draft-card"
+                  style={{ background: ELEMENT_COLOR[card.element] }}
+                  onClick={() => onReplace(id)}
+                >
+                  <div className="card-name">{card.name}</div>
+                  <div className="card-cost">
+                    <CostView card={card} />
+                  </div>
+                  <div className="card-text">{card.text}</div>
+                </button>
+              );
+            })}
+          </div>
+          <button className="confirm-cancel draft-back" onClick={onCancelPick}>
+            ← Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="draft-overlay">
       <div className="draft-panel">
@@ -788,6 +899,11 @@ function DraftOverlay({
         {relic && (
           <p className="draft-relic">
             Relic gained: <RelicBadge passive={relic} />
+          </p>
+        )}
+        {hand.length >= HAND_SIZE && (
+          <p className="draft-full-note">
+            Hand full — picking a new card will ask which to replace.
           </p>
         )}
         <div className="draft-cards">
@@ -816,9 +932,7 @@ function DraftOverlay({
   );
 }
 
-/** Fixed hand size the fight layout budgets for (3×2 grid). */
-const HAND_SLOTS = 6;
-
+/** Player hand in the fixed 3×2 card grid. */
 function CardGrid({
   state,
   onPlay,
@@ -875,23 +989,15 @@ function CostView({ card }: { card: CardDef }) {
 function PlayerStrip({
   state,
   rollNonce,
-  resolving,
-  endTurnNudge,
   hit,
   onToggle,
   onReroll,
-  onSkip,
-  onEndTurn,
 }: {
   state: GameState;
   rollNonce: number[];
-  resolving: boolean;
-  endTurnNudge: boolean;
   hit: { n: number; v: string };
   onToggle: (i: number) => void;
   onReroll: () => void;
-  onSkip: () => void;
-  onEndTurn: () => void;
 }) {
   const player = state.player;
   const dice = player.dice;
@@ -934,33 +1040,20 @@ function PlayerStrip({
           })}
         </div>
         <div className="tray-actions">
-          {resolving ? (
-            <button className="skip" onClick={onSkip}>
-              Skip ⏭
-            </button>
-          ) : (
-            <button
-              className="action-btn reroll"
-              disabled={!canAct || !canReroll(state)}
-              onClick={onReroll}
-              title={`Reroll (${player.actionsRemaining} left)`}
-            >
-              <span className="action-glyph">⟳</span>
-              <span className="action-count">{player.actionsRemaining}</span>
-            </button>
-          )}
+          <button
+            className="action-btn reroll"
+            disabled={!canAct || !canReroll(state)}
+            onClick={onReroll}
+            title={`Reroll (${player.actionsRemaining} left)`}
+          >
+            <span className="action-glyph">⟳</span>
+            <span className="action-count" aria-hidden>
+              {player.actionsRemaining}
+            </span>
+          </button>
         </div>
       </div>
       <HpBar cur={player.hp} max={player.maxHp} hit={hit} />
-      {!resolving && (
-        <button
-          className={`end-turn end-turn-bar${endTurnNudge ? " nudge" : ""}`}
-          disabled={!canAct}
-          onClick={onEndTurn}
-        >
-          End Turn →
-        </button>
-      )}
     </section>
   );
 }
@@ -1098,6 +1191,28 @@ function StatusBadge({ id, stacks }: { id: string; stacks: number }) {
         </div>
       )}
     </span>
+  );
+}
+
+function GameOverOverlay({
+  phase,
+  onPlayAgain,
+}: {
+  phase: "won" | "lost";
+  onPlayAgain: () => void;
+}) {
+  return (
+    <div className="draft-overlay game-over-overlay">
+      <div className={`draft-panel game-over-panel ${phase}`}>
+        <h2>{phase === "won" ? "Victory!" : "Defeated…"}</h2>
+        <p className="confirm-text">
+          {phase === "won" ? "You cleared the encounter." : "Your run is over."}
+        </p>
+        <button className="game-over-again" onClick={onPlayAgain}>
+          Play again
+        </button>
+      </div>
+    </div>
   );
 }
 

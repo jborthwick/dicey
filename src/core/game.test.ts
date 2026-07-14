@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canPlayCard,
   canReroll,
+  cancelDraftPick,
   endTurn,
   endTurnTimeline,
   healInsteadOfDraft,
@@ -9,12 +10,14 @@ import {
   newRun,
   pickDraftCard,
   playCard,
+  replaceDraftCard,
   reroll,
   toggleHold,
 } from "./game";
 import {
   DRAFT_HEAL_AMOUNT,
   ENDLESS_ENEMY_IDS,
+  HAND_SIZE,
   REWARD_CARD_IDS,
 } from "./content";
 import { matchRequirement } from "./dice";
@@ -387,6 +390,12 @@ describe("game — run progression", () => {
         const [first] = s.run.draftOffers ?? [];
         if (!first) break;
         s = pickDraftCard(s, first);
+        if (s.run.pendingDraftPick) {
+          // Hand full — drop the oldest card to make room.
+          const drop = s.player.hand[0];
+          if (!drop) break;
+          s = replaceDraftCard(s, drop);
+        }
         continue;
       }
       if (s.phase !== "playerTurn") break;
@@ -427,7 +436,109 @@ describe("game — run progression", () => {
     for (const id of s.player.hand) counts.set(id, (counts.get(id) ?? 0) + 1);
     for (const [id, n] of counts) expect(n, `duplicate card in hand: ${id}`).toBe(1);
   });
+
+  it("hand never exceeds HAND_SIZE", () => {
+    const s = grindRun(11, HAND_SIZE + 8);
+    expect(s.player.hand.length).toBeLessThanOrEqual(HAND_SIZE);
+  });
 });
+
+describe("game — full-hand draft replace", () => {
+  /** Reach a draft, then surgically fill the hand to HAND_SIZE. */
+  function fullHandAtDraft(seed: number): GameState {
+    let s = newRun(seed);
+    let guard = 0;
+    while (s.phase === "playerTurn" && guard++ < 80) {
+      while (canReroll(s) && !s.player.hand.some((c) => canPlayCard(s, c))) {
+        s = reroll(s);
+      }
+      const card = s.player.hand.find((c) => canPlayCard(s, c));
+      s = card ? playCard(s, card) : endTurn(s);
+    }
+    expect(s.phase).toBe("draft");
+    expect(s.run.draftOffers).toBeTruthy();
+
+    const hand = [...s.player.hand];
+    for (const id of REWARD_CARD_IDS) {
+      if (hand.length >= HAND_SIZE) break;
+      if (!hand.includes(id)) hand.push(id);
+    }
+    expect(hand.length).toBe(HAND_SIZE);
+
+    return {
+      ...s,
+      player: { ...s.player, hand },
+    };
+  }
+
+  it("pickDraftCard parks a pending pick when the hand is full", () => {
+    let s = fullHandAtDraft(42);
+    const offer =
+      s.run.draftOffers?.find((id) => !s.player.hand.includes(id)) ??
+      // Fabricate an unowned offer so the replace path is exercised.
+      REWARD_CARD_IDS.find((id) => !s.player.hand.includes(id)) ??
+      null;
+    expect(offer).toBeTruthy();
+    // Ensure the fabricated id is a legal offer for this draft.
+    s = {
+      ...s,
+      run: {
+        ...s.run,
+        draftOffers: [offer!, s.run.draftOffers![1] ?? offer!],
+      },
+    };
+    const handBefore = [...s.player.hand];
+    s = pickDraftCard(s, offer!);
+    expect(s.phase).toBe("draft");
+    expect(s.run.pendingDraftPick).toBe(offer);
+    expect(s.player.hand).toEqual(handBefore);
+  });
+
+  it("replaceDraftCard swaps the chosen hand card for the pending offer", () => {
+    let s = fullHandAtDraft(7);
+    const offer =
+      REWARD_CARD_IDS.find((id) => !s.player.hand.includes(id)) ?? null;
+    expect(offer).toBeTruthy();
+    s = {
+      ...s,
+      run: {
+        ...s.run,
+        draftOffers: [offer!, offer!],
+      },
+    };
+    const drop = s.player.hand[0]!;
+    s = pickDraftCard(s, offer!);
+    s = replaceDraftCard(s, drop);
+    expect(s.phase).toBe("playerTurn");
+    expect(s.player.hand).toContain(offer);
+    expect(s.player.hand).not.toContain(drop);
+    expect(s.player.hand.length).toBe(HAND_SIZE);
+    expect(s.run.pendingDraftPick).toBeNull();
+  });
+
+  it("cancelDraftPick returns to the offer choice", () => {
+    let s = fullHandAtDraft(13);
+    const offer =
+      REWARD_CARD_IDS.find((id) => !s.player.hand.includes(id)) ?? null;
+    expect(offer).toBeTruthy();
+    s = {
+      ...s,
+      run: {
+        ...s.run,
+        draftOffers: [offer!, offer!],
+      },
+    };
+    s = pickDraftCard(s, offer!);
+    expect(s.run.pendingDraftPick).toBe(offer);
+    s = cancelDraftPick(s);
+    expect(s.run.pendingDraftPick).toBeNull();
+    expect(s.phase).toBe("draft");
+    expect(s.run.draftOffers).toBeTruthy();
+  });
+});
+
+// Keep fightToDraft referenced if unused - actually I defined it but might not use it.
+// Remove unused fightToDraft from the replace describe to avoid lint issues.
 
 describe("game — reaches a terminal state", () => {
   it("ends in win or loss within a bounded number of turns", () => {

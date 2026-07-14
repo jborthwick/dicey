@@ -142,8 +142,7 @@ button:disabled {
 }
 .enemy-name,
 .enemy > .hpbar,
-.enemy-dice,
-.enemy-hand {
+.enemy-action-slot {
   flex-shrink: 0;
 }
 .enemy-name,
@@ -251,9 +250,24 @@ button:disabled {
   font-size: 13px;
   color: var(--ink-dim);
 }
-/* Enemy panel highlights while the spider takes its turn. Inset, not outset —
-   so the glow can't bleed past a tight ancestor and get cropped. */
-.enemy.acting {
+/* Shared highlight around enemy + cards while the enemy acts (one box, not two). */
+.combat-stage {
+  position: relative;
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 14px;
+}
+/* Overlay on top of the child panels so the glow isn't covered by their backgrounds. */
+.combat-stage.acting::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  pointer-events: none;
+  z-index: 6;
   box-shadow:
     inset 0 0 0 2px #8a5fc0,
     inset 0 0 16px -6px #8a5fc0;
@@ -298,6 +312,28 @@ button:disabled {
   height: 100% !important;
   width: auto !important;
   max-width: 100%;
+}
+
+/* Fixed slot under enemy HP: End Turn ↔ enemy dice (same height either way). */
+.enemy-action-slot {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(12px, 4vw, 18px);
+  min-height: clamp(44px, 12vw, 52px);
+  margin-top: 4px;
+}
+.enemy-action-slot .end-turn-bar {
+  margin: 0;
+}
+.enemy-action-slot .enemy-dice {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: flex-start;
+}
+.enemy-action-slot .skip {
+  flex-shrink: 0;
 }
 
 @media (max-height: 700px) {
@@ -355,54 +391,7 @@ button:disabled {
     opacity: 0.4;
   }
 }
-.enemy-dice {
-  margin-top: 4px;
-  justify-content: center;
-}
-/* Spider's hand during its turn — lives under HP in the enemy panel. */
-.enemy-hand {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
-}
-.enemy-card {
-  flex: 1 1 0;
-  min-width: 84px;
-  border: 1px solid #ffffff22;
-  border-radius: 8px;
-  padding: 5px 7px;
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  opacity: 0.4;
-  transform: scale(0.97);
-  transition:
-    opacity 0.18s ease,
-    transform 0.18s ease,
-    box-shadow 0.18s ease;
-}
-/* Cards the spider can currently pay for. */
-.enemy-card.affordable {
-  opacity: 0.82;
-}
-/* The card being played this beat. */
-.enemy-card.playing {
-  opacity: 1;
-  transform: scale(1.06);
-  box-shadow:
-    0 0 0 2px #fff8,
-    0 0 16px -2px #ffffffaa;
-}
-.ec-name {
-  font-size: 12px;
-  font-weight: 700;
-}
-.ec-cost {
-  font-size: 13px;
-}
-/* Read-only dice (the spider's) — no button chrome, no pointer. */
+/* Read-only dice (the enemy's) — no button chrome, no pointer. */
 .die.readonly {
   cursor: default;
 }
@@ -576,31 +565,15 @@ button:disabled {
   outline: none;
 }
 
-/* Wraps the hand so a single overlay can dim it while the enemy acts,
-   without touching the enemy panel above (which has its own .acting glow). */
+/* Fixed card slot — player hand, or enemy hand during their turn (1:1 swap). */
 .player-zone {
   position: relative;
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-}
-/* Dims (and blocks) the player's hand while the enemy resolves. */
-.dim-overlay {
-  position: absolute;
-  inset: 0;
   border-radius: 12px;
-  background: rgba(10, 6, 20, 0.6);
-  z-index: 3;
-  pointer-events: auto;
-  animation: dim-fade 200ms ease-out both;
-}
-@keyframes dim-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  /* Padding always on so the acting glow doesn't grow the box. */
+  padding: 6px;
 }
 
 /* ---- cards: fixed 3×2, six slots always ---- */
@@ -624,6 +597,10 @@ button:disabled {
   gap: 2px;
   color: #fff;
   overflow: hidden;
+  transition:
+    transform 120ms ease-out,
+    filter 120ms ease-out,
+    box-shadow 120ms ease-out;
 }
 .card-empty {
   background: transparent;
@@ -633,6 +610,38 @@ button:disabled {
 }
 .card:not(:disabled):hover {
   filter: brightness(1.12);
+}
+.card:not(:disabled):active {
+  transform: scale(0.94);
+  filter: brightness(1.18);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.35);
+  transition:
+    transform 80ms ease-out,
+    filter 80ms ease-out,
+    box-shadow 80ms ease-out;
+}
+/* Enemy cards in the shared grid: dim until affordable / playing. */
+.card.enemy-card {
+  opacity: 0.45;
+  transform: scale(0.98);
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+  pointer-events: none;
+}
+.card.enemy-card.affordable {
+  opacity: 0.85;
+}
+.card.enemy-card.playing {
+  opacity: 1;
+  /* Same press feel as a player tapping a card. */
+  transform: scale(0.94);
+  filter: brightness(1.18);
+  box-shadow:
+    inset 0 2px 8px rgba(0, 0, 0, 0.35),
+    0 0 0 2px #fff8,
+    0 0 16px -2px #ffffffaa;
 }
 .card-name {
   font-weight: 700;
@@ -700,10 +709,28 @@ button:disabled {
   /* Plays on mount — and each roll remounts the die via its React key.
      --roll-delay staggers a multi-die roll into a cascade. */
   animation: die-roll 440ms cubic-bezier(0.2, 0.85, 0.3, 1.2) var(--roll-delay, 0ms) both;
+  transition:
+    filter 120ms ease-out,
+    box-shadow 120ms ease-out;
 }
 .die-glyph {
   font-size: clamp(20px, 5.5vw, 26px);
   line-height: 1;
+}
+/* Press feedback for player dice only (enemy dice are .readonly). */
+.die:not(:disabled):not(.readonly):active {
+  transform: scale(0.9);
+  filter: brightness(0.92);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition:
+    transform 80ms ease-out,
+    filter 80ms ease-out,
+    box-shadow 80ms ease-out;
+}
+.die.held:not(:disabled):active {
+  box-shadow:
+    0 0 0 2px var(--ok),
+    inset 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 /* Soft contact shadow beneath each die; pops as the die lands ("thud"). */
@@ -767,15 +794,20 @@ button:disabled {
   .die::after,
   .die.popping,
   .die-pop-glow,
-  .die-pop-ring,
-  .dim-overlay {
+  .die-pop-ring {
     animation: none;
   }
   .end-turn.nudge {
     animation: none;
     box-shadow: 0 0 10px 2px rgba(226, 189, 82, 0.6);
   }
-  .enemy.acting {
+  .action-btn.reroll:not(:disabled) {
+    animation: none;
+    box-shadow:
+      0 0 12px 2px rgba(90, 170, 230, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  }
+  .combat-stage.acting::after {
     animation: none;
     box-shadow:
       inset 0 0 0 2px #8a5fc0,
@@ -889,23 +921,108 @@ button:disabled {
   }
 }
 .action-btn {
+  position: relative;
   width: clamp(44px, 12vw, 52px);
   height: clamp(44px, 12vw, 52px);
   flex-shrink: 0;
   padding: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0;
   line-height: 1;
 }
 .action-glyph {
   font-size: clamp(20px, 5.5vw, 26px);
+  line-height: 1;
+  display: block;
 }
-.action-count {
-  font-size: 11px;
-  font-weight: 600;
+.action-btn.reroll {
+  overflow: visible;
+  border-color: #5a9fd4;
+  color: #b8e0ff;
+  background: linear-gradient(160deg, #3a4a6a 0%, #2a3348 100%);
+  box-shadow:
+    0 0 10px 1px rgba(90, 170, 230, 0.45),
+    0 0 22px 2px rgba(70, 140, 200, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  /* Kill inherited line-box padding so the glyph isn't optically low. */
+  line-height: 0;
+  font-size: 0;
+  transition:
+    transform 120ms ease-out,
+    filter 120ms ease-out,
+    box-shadow 120ms ease-out;
+}
+.action-btn.reroll:not(:disabled) {
+  animation: reroll-glow 2s ease-in-out infinite;
+}
+.action-btn.reroll:not(:disabled):hover {
+  filter: brightness(1.1);
+}
+.action-btn.reroll:not(:disabled):active {
+  transform: scale(0.9);
+  filter: brightness(1.2);
+  box-shadow:
+    0 0 6px 1px rgba(90, 170, 230, 0.55),
+    0 0 14px 2px rgba(70, 140, 200, 0.35),
+    inset 0 2px 6px rgba(0, 0, 0, 0.35);
+  animation: none;
+  transition:
+    transform 80ms ease-out,
+    filter 80ms ease-out,
+    box-shadow 80ms ease-out;
+}
+.action-btn.reroll:disabled {
+  box-shadow: none;
+  animation: none;
+}
+.action-btn.reroll .action-glyph {
+  display: block;
+  font-size: clamp(26px, 7vw, 34px);
+  line-height: 1;
+  width: 1em;
+  height: 1em;
+  text-align: center;
+  /* ⟳ glyph ink sits low/left in the em box — nudge to optical center. */
+  transform: translate(2px, -3px);
+  text-shadow: 0 0 10px rgba(160, 220, 255, 0.7);
+}
+/* Badge is out of flow entirely — must not affect icon centering. */
+.action-btn.reroll .action-count {
+  position: absolute;
+  top: -7px;
+  left: -7px;
+  z-index: 2;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  color: #142030;
+  background: #9ad4ff;
+  border: none;
+  box-shadow: 0 0 8px rgba(154, 212, 255, 0.7);
+  pointer-events: none;
+}
+@keyframes reroll-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 10px 1px rgba(90, 170, 230, 0.4),
+      0 0 20px 2px rgba(70, 140, 200, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  }
+  50% {
+    box-shadow:
+      0 0 16px 3px rgba(120, 200, 255, 0.7),
+      0 0 28px 5px rgba(90, 170, 230, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
 }
 .end-turn {
   font-weight: 700;
@@ -946,20 +1063,25 @@ button:disabled {
   padding: 8px 12px;
 }
 
-/* ---- banner ---- */
-.banner {
-  text-align: center;
-  padding: 6px 8px;
-  border-radius: 10px;
+/* ---- game over modal ---- */
+.game-over-panel {
+  max-width: 320px;
+}
+.game-over-panel.won h2 {
+  color: #7dffb0;
+}
+.game-over-panel.lost h2 {
+  color: #ff8a8a;
+}
+.game-over-again {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 13px;
   font-weight: 700;
-  font-size: 14px;
-  flex: 0 0 auto;
-}
-.banner.won {
-  background: #1e5c39;
-}
-.banner.lost {
-  background: #5c1e2a;
+  border-radius: 10px;
+  background: #c9a13a;
+  border-color: #e2bd52;
+  color: #221a05;
 }
 
 /* ---- draft overlay ---- */
@@ -1005,6 +1127,45 @@ button:disabled {
 .draft-heal {
   width: 100%;
   background: #2a4a3a;
+}
+.draft-full-note {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+.draft-replace-panel {
+  max-width: 480px;
+  max-height: min(92dvh, 720px);
+  overflow-y: auto;
+}
+.draft-replace-lead {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+.draft-incoming {
+  width: 100%;
+  margin-bottom: 12px;
+  text-align: left;
+  opacity: 0.95;
+  outline: 2px solid #ffffff55;
+}
+.draft-replace-hand {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.draft-replace-hand .draft-card {
+  min-height: 0;
+  max-height: 110px;
+}
+.draft-back {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 10px;
 }
 .player-relics {
   display: flex;

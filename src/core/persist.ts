@@ -62,7 +62,16 @@ export function decodeSave(raw: string): GameState | null {
   if (!isSaveEnvelope(parsed)) return null;
   if (parsed.version !== SAVE_VERSION) return null;
   if (!isStablePhase(parsed.state.phase)) return null;
-  return parsed.state;
+  return normalizeState(parsed.state);
+}
+
+/** Fill fields added after SAVE_VERSION so older payloads still hydrate. */
+function normalizeState(state: GameState): GameState {
+  if (state.run.pendingDraftPick !== undefined) return state;
+  return {
+    ...state,
+    run: { ...state.run, pendingDraftPick: null },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -168,5 +177,13 @@ function isRunProgress(v: unknown): v is RunProgress {
     }
   }
   if (v.pendingRelic !== null && !isPassive(v.pendingRelic)) return false;
+  // Older saves omit pendingDraftPick — treat missing as null after decode.
+  if (
+    v.pendingDraftPick !== undefined &&
+    v.pendingDraftPick !== null &&
+    typeof v.pendingDraftPick !== "string"
+  ) {
+    return false;
+  }
   return true;
 }

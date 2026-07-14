@@ -3,6 +3,9 @@ import type { Status } from "../types";
 /** Rerolls allowed per turn, after the free initial roll. */
 export const ACTIONS_PER_TURN = 3;
 
+/** Max cards in the player's hand. Drafting past this requires a replace. */
+export const HAND_SIZE = 6;
+
 /** Safety cap on how many cards one actor may play in a single turn. */
 export const MAX_CARDS_PER_TURN = 6;
 
