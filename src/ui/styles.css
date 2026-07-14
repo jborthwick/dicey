@@ -284,13 +284,20 @@ button:disabled {
   height: 100%;
   filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.45));
 }
-/* Inline canvas w/h are the source pixel size × scale (~256px); fit the stage. */
+/* Inline canvas w/h are the source pixel size × scale (~256px). Sheets vary a
+   lot in native aspect ratio (a sprawling rat vs. a tall knight), so instead of
+   always filling stage height (which let wide sprites balloon far past their
+   neighbors), give every sprite the same 75%-wide × full-height slot and let
+   object-fit scale it down to whichever dimension binds first — tall sprites
+   still fill the height like before, wide ones now cap out on width instead. */
 .enemy-sprite canvas,
 .enemy-sprite .sprite-loading,
 .enemy-sprite .sprite-missing {
   height: 100% !important;
-  width: auto !important;
-  max-width: 100%;
+  width: 75% !important;
+  max-width: 75%;
+  object-fit: contain;
+  object-position: center bottom;
 }
 
 /* Fixed slot under enemy HP: End Turn ↔ enemy dice (same height either way). */
