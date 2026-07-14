@@ -123,6 +123,9 @@ export const ENDLESS_ENEMY_IDS = [
   "kobold-warrior",
 ] as const;
 
+/** Low-HP, onboarding-friendly enemies — fight 1 of a run draws from here. */
+export const STARTER_ENEMY_IDS = ["rat-white", "skeleton", "kobold-warrior"] as const;
+
 export function makeEnemy(id: string): Actor {
   const def = ENEMIES[id];
   if (!def) throw new Error(`Unknown enemy: ${id}`);

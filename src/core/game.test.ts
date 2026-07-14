@@ -15,6 +15,7 @@ import {
   toggleHold,
 } from "./game";
 import {
+  BASIC_CARD_IDS,
   DRAFT_HEAL_AMOUNT,
   ENDLESS_ENEMY_IDS,
   HAND_SIZE,
@@ -123,7 +124,9 @@ describe("game — starting state", () => {
     expect(s.player.hp).toBe(86);
     expect(s.enemy.hp).toBe(40);
     expect(s.enemy.name).toBe("Spore Mushroom");
-    expect(s.player.hand).toEqual(["expel", "ice-cone"]);
+    expect(s.player.hand).toHaveLength(2);
+    expect(s.player.hand[0]).not.toBe(s.player.hand[1]);
+    s.player.hand.forEach((id) => expect(BASIC_CARD_IDS).toContain(id));
     expect(s.player.dice).toHaveLength(5);
     expect(s.player.hp).toBe(s.player.maxHp);
     expect(s.player.statuses.poison ?? 0).toBe(0);
@@ -234,7 +237,10 @@ describe("game — silence fizzles a played card instead of blocking play", () =
     let s = newGame(1);
     const dice = [...s.player.dice];
     dice[0] = prismDie("water");
-    s = { ...s, player: { ...s.player, dice, statuses: { silence: 5 } } };
+    s = {
+      ...s,
+      player: { ...s.player, dice, hand: ["ice-cone"], statuses: { silence: 5 } },
+    };
     expect(canPlayCard(s, "ice-cone")).toBe(true);
   });
 
@@ -244,7 +250,7 @@ describe("game — silence fizzles a played card instead of blocking play", () =
     dice[0] = prismDie("water");
     s = {
       ...s,
-      player: { ...s.player, dice, statuses: { silence: 2 } },
+      player: { ...s.player, dice, hand: ["ice-cone"], statuses: { silence: 2 } },
     };
     const hpBefore = s.enemy.hp;
 
@@ -260,7 +266,7 @@ describe("game — silence fizzles a played card instead of blocking play", () =
     let s = newGame(1);
     const dice = [...s.player.dice];
     dice[0] = prismDie("water");
-    s = { ...s, player: { ...s.player, dice, statuses: {} } };
+    s = { ...s, player: { ...s.player, dice, hand: ["ice-cone"], statuses: {} } };
     const hpBefore = s.enemy.hp;
 
     const r = playCard(s, "ice-cone");

@@ -48,6 +48,11 @@ const POP_MS = 380; // glow-pop duration when a die is spent on a card
 /** Fixed hand size the fight layout budgets for (3×2 grid). */
 const HAND_SLOTS = HAND_SIZE;
 
+/** A fresh, varied seed for a new run — doesn't need to be cryptographic. */
+function randomSeed(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
 /** Which side's HP bar a card's effect is aimed at, from the actor's frame:
  *  offensive/debuff cards fly at the opponent, self-buffs at the caster. */
 function targetSideOf(card: CardDef, actorSide: "player" | "enemy"): "player" | "enemy" {
@@ -170,11 +175,10 @@ export default function App() {
   // StrictMode double-mount doesn't re-read / re-seed.
   const [boot] = useState(() => {
     const saved = loadSavedGame();
-    if (saved) return { state: saved, seedInput: String(saved.seed) };
-    return { state: newRun("dicey-1"), seedInput: "dicey-1" };
+    if (saved) return saved;
+    return newRun(randomSeed());
   });
-  const [seedInput, setSeedInput] = useState(boot.seedInput);
-  const [state, setState] = useState<GameState>(boot.state);
+  const [state, setState] = useState<GameState>(boot);
   const [logOpen, setLogOpen] = useState(false);
   const [confirmNewOpen, setConfirmNewOpen] = useState(false);
 
@@ -357,7 +361,7 @@ export default function App() {
     setLogOpen(false);
     setFrames([]);
     setFrameIdx(0);
-    setState(newRun(seedInput || Date.now().toString()));
+    setState(newRun(randomSeed()));
     bumpAll();
   };
 
@@ -401,10 +405,6 @@ export default function App() {
       <header className="topbar">
         <div className="topbar-left">
           <h1>Dicey</h1>
-          <label className="seed">
-            <span className="seed-label">seed</span>
-            <input value={seedInput} onChange={(e) => setSeedInput(e.target.value)} />
-          </label>
         </div>
         <div className="topbar-right">
           {fightLabel && <span className="turn">{fightLabel}</span>}

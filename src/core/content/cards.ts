@@ -110,6 +110,30 @@ export const CARDS: Record<string, CardDef> = {
     effects: [{ kind: "damage", target: "enemy", min: 4, max: 4 }],
     text: "Deal 4 damage.",
   },
+  "rock-toss": {
+    id: "rock-toss",
+    name: "Rock Toss",
+    element: "earth",
+    requirement: { kind: "symbols", symbol: "earth", count: 1 },
+    effects: [{ kind: "damage", target: "enemy", min: 2, max: 5 }],
+    text: "Deal 2-5 damage.",
+  },
+  "stone-ward": {
+    id: "stone-ward",
+    name: "Stone Ward",
+    element: "earth",
+    requirement: { kind: "symbols", symbol: "earth", count: 1 },
+    effects: [{ kind: "block", target: "self", amount: 4 }],
+    text: "Gain 4 Block.",
+  },
+  "sun-guard": {
+    id: "sun-guard",
+    name: "Sun Guard",
+    element: "light",
+    requirement: { kind: "symbols", symbol: "light", count: 1 },
+    effects: [{ kind: "block", target: "self", amount: 4 }],
+    text: "Gain 4 Block.",
+  },
 
   // --- Shared weak enemy cards ---
   nibble: {
@@ -341,8 +365,19 @@ export function getCard(id: string): CardDef {
   return c;
 }
 
-/** Two cheap single-symbol cards the player starts every run with. */
-export const STARTER_CARD_IDS = ["expel", "ice-cone"] as const;
+/**
+ * Simple single-symbol, no-status, damage cards. The starting hand draws 2 at
+ * random — damage-only so a run can never open with two block cards and no
+ * way to hurt the enemy (a real softlock; block cards live in the reward pool
+ * instead, where a full hand of them isn't fatal).
+ */
+export const BASIC_CARD_IDS = [
+  "expel",
+  "ice-cone",
+  "spark-bolt",
+  "gust-slap",
+  "rock-toss",
+] as const;
 
 /** Cards offered after defeating enemies (pick 1 of 2). */
 export const REWARD_CARD_IDS = [
@@ -352,6 +387,8 @@ export const REWARD_CARD_IDS = [
   "physic-guidance",
   "spark-bolt",
   "tide-shield",
+  "stone-ward",
+  "sun-guard",
   "twin-slash",
   "venom-touch",
   "hush",

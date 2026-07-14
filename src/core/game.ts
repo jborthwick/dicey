@@ -7,6 +7,7 @@ import {
   MAX_CARDS_PER_TURN,
   RANDOM_DEBUFFS,
   REWARD_CARD_IDS,
+  STARTER_ENEMY_IDS,
   STATUS_CAPS,
   getCard,
   getDie,
@@ -360,12 +361,13 @@ export function newGame(
   seed: number | string,
   enemyId: string = "mushroom",
 ): GameState {
+  const [player, rng] = makePlayer(seedRng(seed));
   const base: GameState = {
     seed,
-    rng: seedRng(seed),
+    rng,
     turn: 1,
     phase: "playerTurn",
-    player: makePlayer(),
+    player,
     enemy: makeEnemy(enemyId),
     run: SINGLE_ENCOUNTER_RUN,
     log: [],
@@ -378,13 +380,14 @@ export function newGame(
 
 /** Start a full multi-fight run against a random enemy each fight. */
 export function newRun(seed: number | string): GameState {
-  const [enemyId, rng] = pick(seedRng(seed), ENDLESS_ENEMY_IDS);
+  const [player, rng1] = makePlayer(seedRng(seed));
+  const [enemyId, rng2] = pick(rng1, STARTER_ENEMY_IDS);
   const base: GameState = {
     seed,
-    rng,
+    rng: rng2,
     turn: 1,
     phase: "playerTurn",
-    player: makePlayer(),
+    player,
     enemy: makeEnemy(enemyId),
     run: { ...EMPTY_RUN },
     log: [],
