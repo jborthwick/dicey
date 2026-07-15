@@ -120,8 +120,7 @@ button:disabled {
   overflow: hidden;
 }
 .enemy-name,
-.enemy > .hpbar,
-.enemy-action-slot {
+.enemy > .hpbar {
   flex-shrink: 0;
 }
 .enemy-name,
@@ -266,6 +265,7 @@ button:disabled {
   }
 }
 .enemy-stage {
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: flex-end;
@@ -276,6 +276,27 @@ button:disabled {
   min-height: 48px;
   margin: 2px 0 4px;
   overflow: hidden;
+}
+/* Enemy dice ride the top edge of the sprite stage during the enemy's turn. */
+.enemy-dice-overlay {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 7;
+  display: flex;
+  justify-content: center;
+}
+.enemy-dice-overlay .dice {
+  gap: clamp(4px, 1.4vw, 7px);
+}
+.enemy-dice-overlay .die {
+  width: clamp(34px, 9vw, 42px);
+  height: clamp(34px, 9vw, 42px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+}
+.enemy-dice-overlay .die-glyph {
+  font-size: clamp(16px, 4.5vw, 22px);
 }
 .enemy-sprite {
   display: flex;
@@ -298,28 +319,6 @@ button:disabled {
   max-width: 75%;
   object-fit: contain;
   object-position: center bottom;
-}
-
-/* Fixed slot under enemy HP: End Turn ↔ enemy dice (same height either way). */
-.enemy-action-slot {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: clamp(12px, 4vw, 18px);
-  min-height: clamp(44px, 12vw, 52px);
-  margin-top: 4px;
-}
-.enemy-action-slot .end-turn-bar {
-  margin: 0;
-}
-.enemy-action-slot .enemy-dice {
-  flex: 1 1 auto;
-  min-width: 0;
-  justify-content: flex-start;
-}
-.enemy-action-slot .skip {
-  flex-shrink: 0;
 }
 
 @media (max-height: 700px) {
@@ -648,13 +647,38 @@ button:disabled {
 
 /* ---- combined player strip (HP + dice + actions) ---- */
 .player-strip {
+  position: relative;
+  /* Sit above the combat-stage's purple acting glow (z-index 6) so the floated
+     pills — the Skip button during the enemy's turn — rest on top of the
+     outline rather than being crossed by it. */
+  z-index: 10;
   flex: 0 0 auto;
   background: var(--panel);
   border-radius: 12px;
-  padding: 12px 12px 14px;
+  /* Extra top padding so the floating pills (lifted above the tray edge) clear
+     the dice below them. */
+  padding: 8px 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+/* Reroll + turn-advance pills, centered together and floated up over the
+   tray's top edge. */
+.tray-pills {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: -30px;
+  margin-bottom: 2px;
+  min-height: 40px;
+  z-index: 5;
+  /* The row spans full width, but only the pills should catch taps — the empty
+     space to either side must pass clicks through to the cards behind. */
+  pointer-events: none;
+}
+.tray-pills > .pill {
+  pointer-events: auto;
 }
 .player-strip-head {
   display: flex;
@@ -666,25 +690,16 @@ button:disabled {
 .player-strip .player-name {
   font-size: 14px;
 }
-.player-strip-actions {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: space-between;
-  /* Keep dice clear of reroll/end — gaps compress visually on narrow phones. */
-  gap: clamp(12px, 4vw, 18px);
-  min-width: 0;
-  padding: 2px 0;
-}
 .dice {
   display: flex;
-  gap: clamp(6px, 1.8vw, 10px);
+  justify-content: center;
+  gap: clamp(7px, 2.2vw, 12px);
   min-width: 0;
 }
 .die {
   position: relative;
-  width: clamp(44px, 12vw, 52px);
-  height: clamp(44px, 12vw, 52px);
+  width: clamp(52px, 15vw, 64px);
+  height: clamp(52px, 15vw, 64px);
   flex-shrink: 0;
   border-radius: 10px;
   border-width: 2px;
@@ -700,7 +715,7 @@ button:disabled {
     box-shadow 120ms ease-out;
 }
 .die-glyph {
-  font-size: clamp(20px, 5.5vw, 26px);
+  font-size: clamp(24px, 6.5vw, 32px);
   line-height: 1;
 }
 /* Press feedback for player dice only (enemy dice are .readonly). */
@@ -783,15 +798,9 @@ button:disabled {
   .die-pop-ring {
     animation: none;
   }
-  .end-turn.nudge {
+  .end-pill.nudge {
     animation: none;
     box-shadow: 0 0 10px 2px rgba(226, 189, 82, 0.6);
-  }
-  .action-btn.reroll:not(:disabled) {
-    animation: none;
-    box-shadow:
-      0 0 12px 2px rgba(90, 170, 230, 0.55),
-      inset 0 1px 0 rgba(255, 255, 255, 0.12);
   }
   .combat-stage.acting::after {
     animation: none;
@@ -883,107 +892,66 @@ button:disabled {
     opacity: 0;
   }
 }
-.tray-actions {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  flex-shrink: 0;
-  margin-left: 2px;
-}
-
 @media (max-width: 400px) {
   .dice {
-    gap: 5px;
+    gap: 6px;
   }
-  .player-strip-actions {
-    gap: 14px;
-  }
-  .die,
-  .action-btn {
-    width: clamp(42px, 11vw, 48px);
-    height: clamp(42px, 11vw, 48px);
+  .die {
+    width: clamp(46px, 13vw, 56px);
+    height: clamp(46px, 13vw, 56px);
   }
 }
-.action-btn {
-  position: relative;
-  width: clamp(44px, 12vw, 52px);
-  height: clamp(44px, 12vw, 52px);
-  flex-shrink: 0;
-  padding: 0;
-  display: flex;
+
+/* ---- action pills (reroll + turn-advance), shared base ---- */
+.pill {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 13px;
   line-height: 1;
+  padding: 9px 15px;
+  border-radius: 999px;
+  white-space: nowrap;
 }
-.action-glyph {
-  font-size: clamp(20px, 5.5vw, 26px);
-  line-height: 1;
-  display: block;
-}
-.action-btn.reroll {
-  overflow: visible;
+
+/* Reroll — blue, glowing, with a remaining-rerolls badge. */
+.reroll-pill {
   border-color: #5a9fd4;
-  color: #b8e0ff;
+  color: #d3ecff;
   background: linear-gradient(160deg, #3a4a6a 0%, #2a3348 100%);
   box-shadow:
     0 0 10px 1px rgba(90, 170, 230, 0.45),
     0 0 22px 2px rgba(70, 140, 200, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  /* Kill inherited line-box padding so the glyph isn't optically low. */
-  line-height: 0;
-  font-size: 0;
   transition:
     transform 120ms ease-out,
     filter 120ms ease-out,
     box-shadow 120ms ease-out;
 }
-.action-btn.reroll:not(:disabled) {
-  animation: reroll-glow 2s ease-in-out infinite;
-}
-.action-btn.reroll:not(:disabled):hover {
+.reroll-pill:not(:disabled):hover {
   filter: brightness(1.1);
 }
-.action-btn.reroll:not(:disabled):active {
-  transform: scale(0.9);
+.reroll-pill:not(:disabled):active {
+  transform: scale(0.95);
   filter: brightness(1.2);
-  box-shadow:
-    0 0 6px 1px rgba(90, 170, 230, 0.55),
-    0 0 14px 2px rgba(70, 140, 200, 0.35),
-    inset 0 2px 6px rgba(0, 0, 0, 0.35);
-  animation: none;
-  transition:
-    transform 80ms ease-out,
-    filter 80ms ease-out,
-    box-shadow 80ms ease-out;
 }
-.action-btn.reroll:disabled {
+.reroll-pill:disabled {
   box-shadow: none;
-  animation: none;
 }
-.action-btn.reroll .action-glyph {
-  display: block;
-  font-size: clamp(26px, 7vw, 34px);
+.reroll-pill .pill-glyph {
+  font-size: 18px;
   line-height: 1;
-  width: 1em;
-  height: 1em;
-  text-align: center;
-  /* ⟳ glyph ink sits low/left in the em box — nudge to optical center. */
-  transform: translate(2px, -3px);
+  /* ⟳ glyph ink sits low in the em box — nudge to optical center. */
+  transform: translateY(-1px);
   text-shadow: 0 0 10px rgba(160, 220, 255, 0.7);
 }
-/* Badge is out of flow entirely — must not affect icon centering. */
-.action-btn.reroll .action-count {
-  position: absolute;
-  top: -7px;
-  left: -7px;
-  z-index: 2;
-  min-width: 22px;
-  height: 22px;
+.reroll-pill .pill-count {
+  min-width: 20px;
+  height: 20px;
   padding: 0 6px;
   border-radius: 999px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
@@ -991,40 +959,16 @@ button:disabled {
   line-height: 1;
   color: #142030;
   background: #9ad4ff;
-  border: none;
   box-shadow: 0 0 8px rgba(154, 212, 255, 0.7);
-  pointer-events: none;
 }
-@keyframes reroll-glow {
-  0%,
-  100% {
-    box-shadow:
-      0 0 10px 1px rgba(90, 170, 230, 0.4),
-      0 0 20px 2px rgba(70, 140, 200, 0.2),
-      inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  }
-  50% {
-    box-shadow:
-      0 0 16px 3px rgba(120, 200, 255, 0.7),
-      0 0 28px 5px rgba(90, 170, 230, 0.35),
-      inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  }
+/* End Turn — neutral until it's the only move left, then gold + glow so it
+   doesn't outrank playable cards / rerolls the rest of the time. */
+.end-pill {
+  background: #3a3350;
+  border-color: #5a4f7a;
+  color: var(--ink);
 }
-.end-turn {
-  font-weight: 700;
-  font-size: 13px;
-  padding: 10px 14px;
-  white-space: nowrap;
-  border-radius: 999px;
-}
-.end-turn-bar {
-  width: 100%;
-  border-radius: 10px;
-  padding: 10px 14px;
-}
-/* Gold + glow only when End Turn is the only thing left to do; otherwise it
-   stays a neutral button so it doesn't outrank playable cards / rerolls. */
-.end-turn.nudge {
+.end-pill.nudge {
   background: #c9a13a;
   border-color: #e2bd52;
   color: #221a05;
@@ -1041,12 +985,11 @@ button:disabled {
       0 0 28px 4px rgba(201, 161, 58, 0.35);
   }
 }
-.skip {
+/* Skip — takes the End Turn slot while the enemy resolves its turn. */
+.skip-pill {
   background: #4a3f6b;
   border-color: #6b5b96;
-  font-weight: 600;
-  font-size: 12px;
-  padding: 8px 12px;
+  color: var(--ink);
 }
 
 /* ---- game over modal ---- */

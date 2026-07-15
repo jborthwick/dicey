@@ -181,6 +181,7 @@ export default function App() {
   const [state, setState] = useState<GameState>(boot);
   const [logOpen, setLogOpen] = useState(false);
   const [confirmNewOpen, setConfirmNewOpen] = useState(false);
+  const [confirmEndOpen, setConfirmEndOpen] = useState(false);
 
   // A per-die counter, bumped whenever that die actually rolls. It feeds the
   // die's React `key`, so a rolled die remounts and replays its CSS tumble while
@@ -349,6 +350,21 @@ export default function App() {
     applyFrame(timeline[0]!.state, state); // show the enemy's turn beginning now
   };
 
+  // Ending with a usable reroll still in hand is usually a misclick — warn first.
+  const attemptEndTurn = () => {
+    if (resolving) return;
+    if (canReroll(state)) {
+      setConfirmEndOpen(true);
+      return;
+    }
+    doEndTurn();
+  };
+
+  const confirmEndTurn = () => {
+    setConfirmEndOpen(false);
+    doEndTurn();
+  };
+
   // Jump straight to the end of the spider's turn.
   const skipResolve = () => {
     if (!resolving) return;
@@ -428,10 +444,6 @@ export default function App() {
             enemyNonce={enemyNonce}
             playingCardId={enemyPlayingCard}
             hit={hit.enemy}
-            canEndTurn={canAct && !resolving}
-            endTurnNudge={endTurnNudge}
-            onEndTurn={doEndTurn}
-            onSkip={skipResolve}
           />
 
           {/* Fixed card slot: player hand, or enemy hand during their turn (1:1 swap). */}
@@ -448,8 +460,13 @@ export default function App() {
           state={state}
           rollNonce={rollNonce}
           hit={hit.player}
+          acting={resolving}
+          canEndTurn={canAct && !resolving}
+          endTurnNudge={endTurnNudge}
           onToggle={(i) => setState(toggleHold(state, i))}
           onReroll={doReroll}
+          onEndTurn={attemptEndTurn}
+          onSkip={skipResolve}
         />
       </div>
 
@@ -479,6 +496,14 @@ export default function App() {
         <ConfirmNewOverlay
           onCancel={() => setConfirmNewOpen(false)}
           onConfirm={restart}
+        />
+      )}
+
+      {confirmEndOpen && (
+        <ConfirmEndTurnOverlay
+          rerolls={state.player.actionsRemaining}
+          onCancel={() => setConfirmEndOpen(false)}
+          onConfirm={confirmEndTurn}
         />
       )}
 
@@ -666,20 +691,12 @@ function EnemyPanel({
   enemyNonce,
   playingCardId,
   hit,
-  canEndTurn,
-  endTurnNudge,
-  onEndTurn,
-  onSkip,
 }: {
   enemy: Actor;
   acting: boolean;
   enemyNonce: number[];
   playingCardId: string | null;
   hit: { n: number; v: string };
-  canEndTurn: boolean;
-  endTurnNudge: boolean;
-  onEndTurn: () => void;
-  onSkip: () => void;
 }) {
   return (
     <section className="enemy">
@@ -696,6 +713,13 @@ function EnemyPanel({
         </span>
       </div>
       <div className="enemy-stage">
+        {/* The enemy's dice ride along the top edge of the sprite stage while it
+            takes its turn — out of flow, so the panel height never shifts. */}
+        {acting && (
+          <div className="enemy-dice-overlay">
+            <EnemyDice enemy={enemy} enemyNonce={enemyNonce} />
+          </div>
+        )}
         <EnemySprite
           enemyId={enemy.id}
           hp={enemy.hp}
@@ -704,25 +728,6 @@ function EnemyPanel({
         />
       </div>
       <HpBar cur={enemy.hp} max={enemy.maxHp} hit={hit} />
-      {/* Fixed-height slot: End Turn on the player's turn, enemy dice on theirs. */}
-      <div className="enemy-action-slot">
-        {acting ? (
-          <>
-            <EnemyDice enemy={enemy} enemyNonce={enemyNonce} />
-            <button className="skip" onClick={onSkip}>
-              Skip ⏭
-            </button>
-          </>
-        ) : (
-          <button
-            className={`end-turn end-turn-bar${endTurnNudge ? " nudge" : ""}`}
-            disabled={!canEndTurn}
-            onClick={onEndTurn}
-          >
-            End Turn →
-          </button>
-        )}
-      </div>
     </section>
   );
 }
@@ -990,14 +995,24 @@ function PlayerStrip({
   state,
   rollNonce,
   hit,
+  acting,
+  canEndTurn,
+  endTurnNudge,
   onToggle,
   onReroll,
+  onEndTurn,
+  onSkip,
 }: {
   state: GameState;
   rollNonce: number[];
   hit: { n: number; v: string };
+  acting: boolean;
+  canEndTurn: boolean;
+  endTurnNudge: boolean;
   onToggle: (i: number) => void;
   onReroll: () => void;
+  onEndTurn: () => void;
+  onSkip: () => void;
 }) {
   const player = state.player;
   const dice = player.dice;
@@ -1007,43 +1022,62 @@ function PlayerStrip({
   let rollOrder = 0;
   return (
     <section className="player-strip">
+      {/* Floating action pills over the top of the tray. On the player's turn:
+          reroll + End Turn, centered together. While the enemy resolves its
+          turn, only Skip is shown. */}
+      <div className="tray-pills">
+        {acting ? (
+          <button className="pill skip-pill" onClick={onSkip}>
+            Skip ⏭
+          </button>
+        ) : (
+          <>
+            <button
+              className="pill reroll-pill"
+              disabled={!canAct || !canReroll(state)}
+              onClick={onReroll}
+              title={`Reroll (${player.actionsRemaining} left)`}
+            >
+              <span className="pill-glyph" aria-hidden>
+                ⟳
+              </span>
+              Reroll
+              <span className="pill-count" aria-hidden>
+                {player.actionsRemaining}
+              </span>
+            </button>
+            <button
+              className={`pill end-pill${endTurnNudge ? " nudge" : ""}`}
+              disabled={!canEndTurn}
+              onClick={onEndTurn}
+            >
+              End Turn →
+            </button>
+          </>
+        )}
+      </div>
+      <div className="dice">
+        {dice.map((d, i) => {
+          const willRoll = !d.held && !d.spent;
+          const delay = willRoll ? rollOrder++ * STAGGER_MS : 0;
+          return (
+            // The nonce in the key remounts the die when it rolls, replaying the
+            // tumble (CSS) and the symbol shuffle (DieView's mount effect).
+            <DieView
+              key={`${i}-${rollNonce[i] ?? 0}`}
+              die={d}
+              index={i}
+              delay={delay}
+              canAct={canAct}
+              onToggle={onToggle}
+            />
+          );
+        })}
+      </div>
       <div className="player-strip-head">
         <div className="player-name">
           {player.name}
           <StatusRow statuses={player.statuses} />
-        </div>
-      </div>
-      <div className="player-strip-actions">
-        <div className="dice">
-          {dice.map((d, i) => {
-            const willRoll = !d.held && !d.spent;
-            const delay = willRoll ? rollOrder++ * STAGGER_MS : 0;
-            return (
-              // The nonce in the key remounts the die when it rolls, replaying the
-              // tumble (CSS) and the symbol shuffle (DieView's mount effect).
-              <DieView
-                key={`${i}-${rollNonce[i] ?? 0}`}
-                die={d}
-                index={i}
-                delay={delay}
-                canAct={canAct}
-                onToggle={onToggle}
-              />
-            );
-          })}
-        </div>
-        <div className="tray-actions">
-          <button
-            className="action-btn reroll"
-            disabled={!canAct || !canReroll(state)}
-            onClick={onReroll}
-            title={`Reroll (${player.actionsRemaining} left)`}
-          >
-            <span className="action-glyph">⟳</span>
-            <span className="action-count" aria-hidden>
-              {player.actionsRemaining}
-            </span>
-          </button>
         </div>
       </div>
       <HpBar cur={player.hp} max={player.maxHp} hit={hit} />
@@ -1234,6 +1268,35 @@ function ConfirmNewOverlay({
           </button>
           <button className="confirm-ok" onClick={onConfirm}>
             New run
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmEndTurnOverlay({
+  rerolls,
+  onCancel,
+  onConfirm,
+}: {
+  rerolls: number;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="draft-overlay confirm-overlay" onClick={onCancel}>
+      <div className="draft-panel confirm-panel" onClick={(e) => e.stopPropagation()}>
+        <h2>End your turn?</h2>
+        <p className="confirm-text">
+          You still have {rerolls} reroll{rerolls === 1 ? "" : "s"} left.
+        </p>
+        <div className="confirm-actions">
+          <button className="confirm-cancel" onClick={onCancel}>
+            Keep rolling
+          </button>
+          <button className="confirm-ok" onClick={onConfirm}>
+            End turn
           </button>
         </div>
       </div>
